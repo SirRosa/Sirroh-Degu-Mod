@@ -1,0 +1,7 @@
+{
+  "name": "SirrohDegu",
+  "version_number": "0.1.0",
+  "website_url": "https://github.com/SirRosa/Sirroh-Degu-Mod",
+  "description": "Testowe stworzenie Degu: kopia wilka z podmienionym meshem; wyłącznie spawn Degu.",
+  "dependencies": ["denikson-BepInExPack_Valheim-5.4.2351"]
+}
