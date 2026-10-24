@@ -12,14 +12,24 @@
   ],
   "eye_dots_px": [
     [
-      39,
-      67
+      39.5,
+      67.5
     ],
     [
-      184,
-      97
+      183.5,
+      96.5
     ]
   ],
+  "inner_ear_pixel": [
+    99.2,
+    97.3
+  ],
+  "underside_paw_pixel": [
+    157.9,
+    101.0
+  ],
+  "inner_ear_vertices": 26,
+  "paw_sole_vertices": 52,
   "mirrored_pairs_checked": 331,
   "mirrored_uv_error_max_px": 0.0,
   "coat_points_outside_user_outline": 0,
