@@ -1,4 +1,4 @@
-name: Build Sirroh Degu 0.1.0
+name: Build Sirroh Degu
 on:
   push:
     branches: [main]
