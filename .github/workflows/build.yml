@@ -21,6 +21,13 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Validate and unpack exact Degu mesh asset
         run: python3 tools/unpack_model.py
+      - name: Rebuild and audit Degu skin from original FaceSets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet numpy
+          python3 tools/rebuild_skin.py
+          test -s release/Degu_Skinning_QA.json
       - name: Install SteamCMD
         uses: CyberAndrii/setup-steamcmd@v1
       - name: Download Valheim Dedicated Server for game assemblies
@@ -47,6 +54,23 @@ jobs:
           done
       - name: Compile BepInEx plugin net48
         run: dotnet build SirrohDegu.csproj -c Release --nologo -v minimal
+      - name: Download Blender for native rig and deformation verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fLsS --retry 3 --connect-timeout 30 'https://download.blender.org/release/Blender5.2/blender-5.2.1-linux-x64.tar.xz' -o /tmp/degu-blender.tar.xz
+          mkdir -p /tmp/degu-blender
+          tar -xJf /tmp/degu-blender.tar.xz -C /tmp/degu-blender
+          echo "BLENDER_BIN=$(find /tmp/degu-blender -type f -name blender | head -n1)" >> "$GITHUB_ENV"
+      - name: Generate reviewable Blender model and verify physical deformation
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$BLENDER_BIN" --background --python-exit-code 2 --python tools/build_blend.py > release/Degu_Blender_Build.log 2>&1 || { tail -n 100 release/Degu_Blender_Build.log; exit 1; }
+          grep -q DEGU_BLENDER_QA_PASS release/Degu_Blender_Build.log
+          test -s release/Degu_Wolf_Reweighted_v0.1.4.blend
+          test -s release/Degu_Blender_QA.json
+          tail -n 8 release/Degu_Blender_Build.log
       - name: Install icon rendering library
         run: python3 -m pip install --quiet Pillow
       - name: Package and run static validation
@@ -76,7 +100,9 @@ jobs:
           VERSION=$(python3 -c 'import json; print(json.load(open("manifest.json"))["version_number"])')
           git add -f "release/SirrohDegu-${VERSION}.zip" "release/SirRosa-SirrohDegu-${VERSION}.zip" \
             release/SirrohDegu/SirrohDegu.dll release/SirrohDegu/manifest.json \
-            release/SirrohDegu/README.md release/SirrohDegu/icon.png
+            release/SirrohDegu/README.md release/SirrohDegu/icon.png \
+            release/Degu_Wolf_Reweighted_v0.1.4.blend release/Degu_Blender_QA.json \
+            release/Degu_Skinning_QA.json release/Degu_Blender_Build.log
           if ! git diff --cached --quiet; then
             git commit -m "Release tested Sirroh Degu Thunderstore ZIP v${VERSION}"
             git push origin HEAD:main

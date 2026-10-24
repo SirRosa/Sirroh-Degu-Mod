@@ -174,7 +174,7 @@ namespace SirrohDegu
                     vertices[i] = skin.transform.InverseTransformPoint(Project(vertices[i]));
                 model.vertices = vertices;
 
-                Transform[] drivenWolf = DeguRigDriver.MapSourceBones(wolfBones, swapSides);
+                Transform[] drivenWolf = wolfBones;
                 Transform[] fitted = new Transform[Names.Length];
                 GameObject rigRoot = new GameObject("SirrohDegu_FittedSkeleton");
                 rigRoot.transform.SetParent(skin.transform, false);
@@ -196,7 +196,7 @@ namespace SirrohDegu
                     inverseBinds[i] = fitted[i].worldToLocalMatrix * skin.transform.localToWorldMatrix;
                 model.bindposes = inverseBinds;
                 model.RecalculateBounds();
-                DeguAppearance.Apply(skin, model);
+                // Keep the ORIGINAL Wolf materials and their textures; never create replacements.
                 skin.bones = fitted;
                 skin.rootBone = fitted[0];
                 skin.sharedMesh = model;
@@ -205,8 +205,8 @@ namespace SirrohDegu
 
                 var driver = cloneRoot.AddComponent<DeguRigDriver>();
                 driver.Configure(skin.transform, drivenWolf, fitted);
-                InstanceLog("Degu fitted rig v0.1.3: vertices=" + model.vertexCount +
-                    ", 34 animated joints, real Wolf ground alignment, opaque Degu materials.");
+                InstanceLog("Degu fitted rig v0.1.4: vertices=" + model.vertexCount +
+                    ", 34 animated joints, real Wolf ground alignment, original Wolf textures, corrected outward surfaces.");
             }
             catch
             {
@@ -252,10 +252,11 @@ namespace SirrohDegu
                     var triangles=new int[icount];
                     for(int i=0;i<icount;i+=3)
                     {
-                        // GLB triangles are CCW; Unity's front face is CW.
+                        // Source SDG3 triangles already have OUTWARD winding.
+                        // The previous b/c swap rendered the inside of the body.
                         int a=br.ReadUInt16(),b=br.ReadUInt16(),c=br.ReadUInt16();
                         if (a>=vcount || b>=vcount || c>=vcount) throw new InvalidDataException("Invalid triangle index.");
-                        triangles[i]=a;triangles[i+1]=c;triangles[i+2]=b;
+                        triangles[i]=a;triangles[i+1]=b;triangles[i+2]=c;
                     }
                     if (stream.Position != stream.Length) throw new InvalidDataException("Model has trailing data.");
                     var mesh=new Mesh { name="Degu_Weighted_WolfRig" };
@@ -264,7 +265,7 @@ namespace SirrohDegu
                     mesh.triangles=triangles;
                     mesh.RecalculateNormals();
                     mesh.RecalculateTangents();
-                    DeguWeightRepair.Apply(vertices, weights);
+                    // Original FaceSet-based weights were rebuilt before DLL compilation.
                     mesh.boneWeights=weights;
                     mesh.RecalculateBounds();
                     return mesh;
