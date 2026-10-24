@@ -12,9 +12,9 @@ spawn Degu
 
 ## Instalacja
 
-**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.1.5.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
+**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.1.6.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
 
-**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.1.5.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
+**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.1.6.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
 
 Model pochodzi z `Degu.blend` i zawiera wagi dla 34 kości kompatybilnych nazwami z oryginalnym wilkiem. Żaden skrypt odpowiedzialny za zachowanie wilka nie jest zastępowany.
 
@@ -31,19 +31,19 @@ GitHub Actions używa dedykowanego serwera Valheim do pobrania aktualnych biblio
 
 Po udanym buildzie skompilowana DLL, manifest i dwie paczki ZIP (w tym pełna paczka Thunderstore) trafiają jako commit do `release/` (bez upload-artifact, aby uniknąć limitu magazynu artefaktów). Każda nowa wersja moda automatycznie otrzymuje ZIP Thunderstore zgodny z `manifest.json`.
 
-## v0.1.5: naprawa rejestracji
+## v0.1.6: naprawa rejestracji
 
 Poprawiono dwa błędy z v0.1.0: klonowanie aktywnego wilka powodowało `NullReferenceException` w `ZNetView.Awake`, a mod nie uzupełniał `ZNetScene.m_namedPrefabs`. Teraz prefab powstaje pod nieaktywnym obiektem pomocniczym, z wyłączoną inicjalizacją sieciową na czas kopiowania; rejestracja następuje po `ZNetScene.Awake` zarówno w `m_prefabs`, jak i `m_namedPrefabs`. Gra sprawdza `GetPrefab("Degu")` i zapisuje jednoznaczny wynik w logu.
 
 **Log oczekiwany:** `Degu REGISTERED + VERIFIED`. Po poleceniu `spawn Degu`: `Degu(Clone): ZNetView.Awake executed`. Jeżeli prefab pojawi się, ale jego model będzie niewidoczny lub zdeformowany, konieczne będą osobne testy renderingu i animacji.
 
-## v0.1.5: naprawa deformacji
+## v0.1.6: naprawa deformacji
 
 Oryginalny wilk pozostaje sterownikiem animacji, AI, dźwięku i rozgrywki. Geometria Degusa nie jest już wiązana bezpośrednio z oryginalnymi pozycjami stawów wilka: powstaje drugi, anatomicznie dopasowany szkielet z 34 kośćmi, którego lokalne obroty są odczytywane z animowanego wilka w LateUpdate. Model i jego stawy przechodzą tę samą transformację osi Degu (+Y góra, +Z przód) na osie oryginalnego wilka. Bind poses są liczone względem szkieletu Degusa, nie kości oryginalnego wilka. Waga maksymalnie czterech kości na wierzchołek.
 
 Nadal testowy: sprawdzić zmianę animacji, zginanie ogona i kończyn, multiplayer oraz UV / materiał. Collidery i parametry AI pozostają wilcze, żadnego naturalnego spawnu.
 
-## v0.1.5 — poziom, łapy, materiały
+## v0.1.6 — poziom, łapy, materiały
 
 - Oś pionu pochodzi z wektora `Wolf Thigh → Foot` (zamiast potencjalnie odwróconego iloczynu wektorowego). Nogi otrzymują stronę właściwą dla przemapowanych osi.
 - Model i nowy rig są przesuwane tak, aby najniższe punkty Degusa i oryginalnej siatki wilka znajdowały się na tym samym poziomie; bez stałej wysokości miednicy.
@@ -54,7 +54,7 @@ Nadal testowy: sprawdzić zmianę animacji, zginanie ogona i kończyn, multiplay
 
 **Test w grze jest wymagany:** zweryfikować chód, poziom łap, kierunek spojrzenia i wygląd materiałów. Nowa wersja nie jest jeszcze zweryfikowana wizualnie na kliencie gry.
 
-## v0.1.5 — ponowne zbudowanie wag i przywrócenie animacji
+## v0.1.6 — ponowne zbudowanie wag i przywrócenie animacji
 
 - Wagi są generowane **od zera z oryginalnych Face Sets**, z wydzieleniem lewej i prawej strony, połączeniami stawów, topologicznym wygładzaniem i normalizacją czterech wpływów.
 - Usunięto runtime DeguWeightRepair i przepisanie materiałów. SkinnedMeshRenderer zachowuje **oryginalne materiały i tekstury wilka z Valheim**.
@@ -64,7 +64,7 @@ Nadal testowy: sprawdzić zmianę animacji, zginanie ogona i kończyn, multiplay
 
 **Model wymaga testu w uruchomionej grze.** W Blenderze zweryfikowano niezależnie deformacje kończyn i brak zmian w pozycji spoczynkowej. Ostateczny chód i wygląd tekstur są zależne od animacji i UV Valheim.
 
-## v0.1.5 — poprawa spamu konsoli i oryginalnego atlasu wilka
+## v0.1.6 — poprawa spamu konsoli i oryginalnego atlasu wilka
 
 - Wyeliminowano `NullReferenceException` z `DeguRigDriver.LateUpdate` po utworzeniu nowego obiektu. Częściowo serializowany cache diagnostyki nie był odtwarzany na instancjach, co powodowało wyjątek co klatkę. Dodano bezpieczną inicjalizację w `Awake` i kontrole brakujących kości.
 - Zidentyfikowano oryginalny materiał `wolfMat` i jego shader `Custom/Creature` (kanał UV0 próbkowany przez `_MainTex`, `_BumpMap` oraz `_EmissionMap`). Mod **nie tworzy żadnych materiałów ani tekstur w grze**. Zachowuje wszystkie oryginalne materiały wilka bez ich modyfikacji.
@@ -73,3 +73,14 @@ Nadal testowy: sprawdzić zmianę animacji, zginanie ogona i kończyn, multiplay
 - Plik `.blend`, raport UV i obraz z nałożonymi punktami UV w katalogu `release/` umożliwiają sprawdzenie wyniku przed testem.
 
 Nie zmieniano sztucznie wag z wersji 0.1.4. Mapowanie atlasu jest eksperymentalne i wymaga wizualnej kontroli w grze. Komenda: `spawn Degu`, brak spawnu naturalnego.
+
+## v0.1.6 — obrys UV od użytkownika, kontakt łap
+
+- Model jest rzutowany na **jedną stronę tekstury wilka 256×256**, dokładnie według czerwonego obrysu użytkownika: pysk po lewej stronie, przednie łapy na lewym dole, tylne po prawej, ogon u góry z prawej. **Lewa i prawa strona Degusa używają wspólnego obszaru** UV. Nos wyznacza zielony punkt (65,136); lewe i prawe oko nie współdzielą atlasu i używają zaznaczonych punktów (39,67) oraz (184,97).
+- Pozostałe punkty UV poza konturem są przenoszone do najbliższej bezpiecznej części tej samej sylwetki, bez przypadkowego próbkowania innych atlasowych przedmiotów.
+- W runtime nie tworzymy ani nie zastępujemy materiału i tekstur wilka. Oryginalny `wolfMat` pozostaje bez zmian. Materiał w pliku Blender służy **wyłącznie do podglądu** UV i ma podpięty oryginalny atlas Valheim.
+- Geometria, wagi, kości i indeksy trójkątów z poprzedniej wersji pozostają niezmienione. Wyniki UV i symetrii są sprawdzane w CI, a obraz `Degu_Wolf_UV_Overlay.png` pokazuje projekcję na teksturę.
+- Poprzednia pozycja spoczynkowa wynikała z ustawienia łap według rozmiaru granic siatki wilka, która zawiera również margines animacji. Nowe pozycjonowanie bazuje na punkcie podparcia fizycznego stworzenia. Przy każdej aktualizacji animacji cztery osobne końcówki łap otrzymują niewielką korektę przy kontakcie z podłożem (bez raycastów), maksymalnie 0,22 m. To przybliżenie geometryczne; właściwy wynik wymagający weryfikacji w Valheim.
+- Plik Blender ma 34 oryginalnie nazwane kości, wszystkie Vertex Groups, Face Sets, nowy atlas UV i testy deformacji.
+
+**Test:** sprawdź pozycję tylnych łap w idle, przednich podczas chodu, odbicie obu stron futra oraz oczy i nos. Konfiguracja wciąż testowa.

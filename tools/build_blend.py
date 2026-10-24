@@ -77,6 +77,19 @@ def main():
     ob=bpy.data.objects.new('Degu_OriginalGeometry_NEW_WEIGHTS',mesh)
     bpy.context.collection.objects.link(ob)
     ob.rotation_euler[0]=math.pi/2
+    # REVIEW ONLY: Blender's Principled preview uses the exact packed
+    # Valheim Wolf atlas. This DOES NOT ship a new Unity/game material.
+    if atlas_path.exists():
+        preview=bpy.data.materials.new('PREVIEW_ONLY__Valheim_original_wolfMat')
+        preview.use_nodes=True
+        nodes=preview.node_tree.nodes
+        shader=nodes.get('Principled BSDF')
+        texnode=nodes.new('ShaderNodeTexImage')
+        texnode.name='Wolf original albedo - user outlined UV'
+        texnode.image=img
+        preview.node_tree.links.new(texnode.outputs['Color'],shader.inputs['Base Color'])
+        shader.inputs['Alpha'].default_value=1.0
+        ob.data.materials.append(preview)
 
     arm=bpy.data.armatures.new('Wolf_34_Bones_DeguFitted')
     rig=bpy.data.objects.new('Valheim_Wolf_Hierarchy_DeguRest',arm)
@@ -144,7 +157,7 @@ def main():
     rig['animation_source']='Valheim vanilla Wolf rig; game controls an independent fitted Degu skeleton'
     rig.show_in_front=True
     arm.display_type='STICK'
-    output=ROOT/'release'/'Degu_Wolf_Reweighted_v0.1.5.blend'
+    output=ROOT/'release'/'Degu_Wolf_Reweighted_v0.1.6.blend'
     output.parent.mkdir(parents=True,exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=str(output),check_existing=False)
     report={'status':'PASS','blender':'NATIVE Blender save + evaluated modifier pose tests',
