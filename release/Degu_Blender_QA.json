@@ -1,7 +1,7 @@
 {
   "status": "PASS",
   "blender": "NATIVE Blender save + evaluated modifier pose tests",
-  "file": "Degu_Wolf_Reweighted_v0.1.4.blend",
+  "file": "Degu_Wolf_Reweighted_v0.1.5.blend",
   "bones": 34,
   "vertex_groups": 34,
   "vertices": 1477,

@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "source": "Original Valheim wolfMat _MainTex reference",
+  "reference_git_blob_sha": "b3bdc036c5a654ee216519284c0a1606e0b97b53",
+  "atlas_size": [
+    256,
+    256
+  ],
+  "vertices": 1477,
+  "original_uv_zero_count": 359,
+  "new_uv_zero_count": 0,
+  "face_set_count": 20,
+  "eye_l_count": 559,
+  "eye_r_count": 559,
+  "eye_l_uv_bounds": [
+    0.125546875,
+    0.707578125,
+    0.183046875,
+    0.765078125
+  ],
+  "eye_r_uv_bounds": [
+    0.691953125,
+    0.590390625,
+    0.749453125,
+    0.647890625
+  ],
+  "sampled_alpha_min": 254,
+  "sampled_alpha_below_128": 0,
+  "sampled_alpha_below_32": 0,
+  "source_material": "Existing runtime wolfMat (not replaced)",
+  "warning": "UV sampling validated offline; game rendering must still be verified in Valheim."
+}
