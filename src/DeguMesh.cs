@@ -102,13 +102,16 @@ namespace SirrohDegu
                 if (originalForward.sqrMagnitude < .00001f ||
                     originalUp.sqrMagnitude < .00001f || side.sqrMagnitude < .00001f)
                     throw new InvalidOperationException("Wolf anatomical basis is degenerate.");
-                Vector3 up = originalUp.normalized;
+                // Y is Valheim's global gravity-up. Limb vectors are tilted
+                // during rest (wolf hocks are behind the thighs), therefore
+                // their direction must validate uprightness, not determine it.
+                Vector3 up = Vector3.up;
                 Vector3 forward = Vector3.ProjectOnPlane(originalForward, up).normalized;
                 if (forward.sqrMagnitude < .5f)
                     throw new InvalidOperationException("Wolf head vector parallel to up.");
                 Vector3 right = Vector3.Cross(up, forward).normalized;
                 up = Vector3.Cross(forward, right).normalized;
-                if (Vector3.Dot(up, originalUp.normalized) < .7f ||
+                if (Vector3.Dot(up, originalUp.normalized) < .6f ||
                     Vector3.Dot(forward, originalForward.normalized) < .25f ||
                     Mathf.Abs(Vector3.Dot(right, side.normalized)) < .6f)
                     throw new InvalidOperationException("Wolf axis orientation did not validate.");
