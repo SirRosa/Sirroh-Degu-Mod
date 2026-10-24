@@ -19,53 +19,142 @@ namespace SirrohDegu
             "Tail","Tail1","Tail2","Tail3"
         };
 
+        // Original Wolf hierarchy index order, recovered from Wolf.prefab. Every
+        // parent index precedes its children and exactly matches Names above.
+        private static readonly int[] Parent = {
+            -1,0,1,2,3,4,5,6,5,5,5,5,5,5,4,14,15,16,4,18,19,20,1,22,23,24,1,26,27,28,1,30,31,32
+        };
+
+        // Anatomical attachment points measured on the SOURCE Degu mesh, NOT
+        // original Wolf bone offsets. Degu source: X=side, Y=up, Z=forward.
+        private static readonly Vector3[] DeguJoints = {
+            new Vector3(0f,.19f,-.295f),      // Pelvis
+            new Vector3(0f,.245f,-.125f),     // Spine
+            new Vector3(0f,.24f,-.01f),       // Spine1
+            new Vector3(0f,.28f,.085f),       // Spine2
+            new Vector3(0f,.31f,.19f),        // Neck
+            new Vector3(0f,.35f,.30f),        // Head
+            new Vector3(0f,.275f,.33f),       // Jaw
+            new Vector3(0f,.278f,.38f),       // Tongue (no skin weights yet)
+            new Vector3(-.107f,.396f,.219f),  // L Ear
+            new Vector3(.107f,.396f,.219f),   // R Ear
+            new Vector3(-.078f,.315f,.328f),  // L Cheek
+            new Vector3(.078f,.315f,.328f),   // R Cheek
+            new Vector3(.062f,.354f,.312f),   // Eye R
+            new Vector3(-.062f,.354f,.312f),  // Eye L
+            new Vector3(-.092f,.135f,.16f),   // L Clavicle
+            new Vector3(-.086f,.08f,.16f),    // L UpperArm
+            new Vector3(-.07f,.033f,.173f),   // L Forearm
+            new Vector3(-.086f,.012f,.239f),  // L Hand
+            new Vector3(.092f,.135f,.16f),    // R Clavicle
+            new Vector3(.086f,.08f,.16f),     // R UpperArm
+            new Vector3(.07f,.033f,.173f),    // R Forearm
+            new Vector3(.086f,.012f,.239f),   // R Hand
+            new Vector3(-.104f,.145f,-.295f),// L Thigh
+            new Vector3(-.098f,.07f,-.29f),   // L Calf
+            new Vector3(-.095f,.028f,-.27f),  // L HorseLink
+            new Vector3(-.093f,.01f,-.172f),  // L Foot
+            new Vector3(.104f,.145f,-.295f), // R Thigh
+            new Vector3(.098f,.07f,-.29f),    // R Calf
+            new Vector3(.095f,.028f,-.27f),   // R HorseLink
+            new Vector3(.093f,.01f,-.172f),  // R Foot
+            new Vector3(0f,.027f,-.404f),    // Tail
+            new Vector3(0f,.025f,-.47f),     // Tail1
+            new Vector3(0f,.018f,-.55f),     // Tail2
+            new Vector3(0f,.01f,-.63f)       // Tail3
+        };
+
+        private const float VisualScale = 1.30f;
+        private const float GroundOffset = -.19f;
+        private static readonly Vector3 DeguPelvis = new Vector3(0f, .19f, -.295f);
+
         internal static void ReplaceMesh(SkinnedMeshRenderer skin)
         {
-            Transform[] wolfBones = skin.bones;
-            if (wolfBones == null || wolfBones.Length == 0) throw new InvalidOperationException("Wolf renderer has no bones.");
+            if (skin == null || skin.sharedMesh == null)
+                throw new InvalidOperationException("Wolf has no valid skinned renderer.");
+            if (Names.Length != 34 || Parent.Length != Names.Length || DeguJoints.Length != Names.Length)
+                throw new InvalidOperationException("Degu skeleton reference arrays inconsistent.");
+
             var lookup = new Dictionary<string, Transform>(StringComparer.Ordinal);
-            foreach (Transform t in wolfBones)
-                if (t != null && !lookup.ContainsKey(t.name)) lookup.Add(t.name, t);
-            // Some cosmetic bones can exist outside renderer.bones; locate all from the
-            // original Wolf armature without changing its animator or hierarchy.
             foreach (Transform t in skin.transform.root.GetComponentsInChildren<Transform>(true))
-                if (t != null && !lookup.ContainsKey(t.name)) lookup.Add(t.name, t);
-            var bones = new Transform[Names.Length];
+                if (t != null && !lookup.ContainsKey(t.name))
+                    lookup.Add(t.name, t);
+
+            Transform[] wolfBones = new Transform[Names.Length];
             for (int i = 0; i < Names.Length; ++i)
             {
-                if (!lookup.TryGetValue(Names[i], out bones[i]) || bones[i] == null)
-                    throw new InvalidOperationException("Wolf bone missing: " + Names[i]);
+                if (!lookup.TryGetValue(Names[i], out wolfBones[i]) || wolfBones[i] == null)
+                    throw new InvalidOperationException("Original Wolf bone missing: " + Names[i]);
+                if (Parent[i] >= 0 && wolfBones[i].parent != wolfBones[Parent[i]])
+                    throw new InvalidOperationException("Wolf hierarchy mismatch at " + Names[i]);
             }
-            Mesh sourceWolf = skin.sharedMesh;
-            if (sourceWolf == null) throw new InvalidOperationException("Wolf sharedMesh missing.");
+
             Mesh model = Load();
             try
             {
-                // Uniformly fit Degu to original Wolf mesh's renderer-space
-                // bounds. Keep Wolf transform, Animator, collider and skeleton.
-                Bounds sourceBounds = model.bounds;
-                Bounds targetBounds = sourceWolf.bounds;
-                float ratio = targetBounds.size.magnitude / Math.Max(sourceBounds.size.magnitude, 0.001f);
-                if (float.IsNaN(ratio) || float.IsInfinity(ratio) || ratio <= 0f || ratio > 100f)
-                    throw new InvalidDataException("Degu/Wolf size ratio invalid.");
+                // Compute an orthonormal, handedness-preserving basis from the
+                // ACTUAL Wolf pose in this prefab (not a guessed Unity axis).
+                // Degu +Z = forward, +Y = up, +X = anatomical right.
+                Vector3 forward = wolfBones[5].position - wolfBones[0].position;
+                Vector3 left = wolfBones[22].position - wolfBones[26].position;
+                if (forward.sqrMagnitude < .00001f || left.sqrMagnitude < .00001f)
+                    throw new InvalidOperationException("Cannot infer Wolf body axes.");
+                forward.Normalize();
+                left = Vector3.ProjectOnPlane(left, forward).normalized;
+                Vector3 up = Vector3.Cross(left, forward).normalized;
+                forward = Vector3.Cross(up, left).normalized;
+                Vector3 right = -left;
+                if (up.sqrMagnitude < .9f || forward.sqrMagnitude < .9f || left.sqrMagnitude < .9f)
+                    throw new InvalidOperationException("Wolf anatomy basis invalid.");
+
+                Vector3 pelvisWorld = wolfBones[0].position;
+                Vector3 Project(Vector3 point)
+                {
+                    Vector3 p = point - DeguPelvis;
+                    return pelvisWorld + VisualScale *
+                        (right*p.x + up*p.y + forward*p.z) + GroundOffset*up;
+                }
+
+                // Convert mesh vertices AND the anatomical bones using one
+                // common basis. Previous code only scaled vertices and bound
+                // them to Wolf's unrelated joint locations: that caused the
+                // extreme stretching and floating limbs.
                 Vector3[] vertices = model.vertices;
-                Vector3 offset = targetBounds.center - sourceBounds.center * ratio;
-                for (int i=0; i<vertices.Length; i++) vertices[i] = vertices[i]*ratio + offset;
+                for (int i=0; i<vertices.Length; i++)
+                    vertices[i] = skin.transform.InverseTransformPoint(Project(vertices[i]));
                 model.vertices = vertices;
 
-                // Bind to the actual unchanged Wolf rig. At bind pose each
-                // bone/world -> renderer/local composition is identity.
-                Matrix4x4[] bindposes = new Matrix4x4[bones.Length];
-                for (int i=0; i<bones.Length; ++i)
-                    bindposes[i] = bones[i].worldToLocalMatrix * skin.transform.localToWorldMatrix;
-                model.bindposes = bindposes;
+                Transform[] fitted = new Transform[Names.Length];
+                GameObject rigRoot = new GameObject("SirrohDegu_FittedSkeleton");
+                rigRoot.transform.SetParent(skin.transform, false);
+                for (int i=0; i<Names.Length; i++)
+                {
+                    var joint = new GameObject("Sirroh_" + Names[i]);
+                    Transform parent = Parent[i] < 0 ? rigRoot.transform : fitted[Parent[i]];
+                    joint.transform.SetParent(parent, false);
+                    fitted[i] = joint.transform;
+                    if (Parent[i] < 0)
+                        fitted[i].rotation = wolfBones[i].rotation;
+                    else
+                        fitted[i].localRotation = wolfBones[i].localRotation;
+                    fitted[i].position = Project(DeguJoints[i]);
+                }
+
+                Matrix4x4[] inverseBinds = new Matrix4x4[fitted.Length];
+                for (int i=0; i<fitted.Length; i++)
+                    inverseBinds[i] = fitted[i].worldToLocalMatrix * skin.transform.localToWorldMatrix;
+                model.bindposes = inverseBinds;
                 model.RecalculateBounds();
-                skin.bones = bones;
-                // Preserve the original Wolf renderer.rootBone and animator bindings.
+                skin.bones = fitted;
+                skin.rootBone = fitted[0];
                 skin.sharedMesh = model;
                 skin.localBounds = model.bounds;
                 skin.updateWhenOffscreen = true;
-                InstanceLog("Degu mesh replaced: " + model.vertexCount + " vertices, 34 Wolf bones.");
+
+                var driver = skin.transform.root.gameObject.AddComponent<DeguRigDriver>();
+                driver.Configure(skin.transform, wolfBones, fitted);
+                InstanceLog("Degu fitted rig v0.1.2: vertices=" + model.vertexCount +
+                    ", animated joints=34, axes validated, source wolf Animator unchanged.");
             }
             catch
             {
