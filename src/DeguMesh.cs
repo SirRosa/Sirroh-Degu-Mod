@@ -61,7 +61,7 @@ namespace SirrohDegu
                 model.bindposes = bindposes;
                 model.RecalculateBounds();
                 skin.bones = bones;
-                skin.rootBone = bones[0];
+                // Preserve the original Wolf renderer.rootBone and animator bindings.
                 skin.sharedMesh = model;
                 skin.localBounds = model.bounds;
                 skin.updateWhenOffscreen = true;
@@ -89,12 +89,11 @@ namespace SirrohDegu
                     if (vcount < 100 || vcount > 60000 || icount < 300 || icount > 65000 || icount%3!=0 || bones != Names.Length)
                         throw new InvalidDataException("Invalid model sizes.");
                     var vertices=new Vector3[vcount];
-                                        var uv=new Vector2[vcount];
+                    var uv=new Vector2[vcount];
                     var weights=new BoneWeight[vcount];
                     for (int i=0;i<vcount;i++)
                     {
                         vertices[i]=new Vector3(br.ReadInt16()/16384f,br.ReadInt16()/16384f,br.ReadInt16()/16384f);
-                        
                         uv[i]=new Vector2(ReadHalf(br.ReadUInt16()),ReadHalf(br.ReadUInt16()));
                         int a=br.ReadByte(),b=br.ReadByte(),c=br.ReadByte(),d=br.ReadByte();
                         int wa=br.ReadByte(),wb=br.ReadByte(),wc=br.ReadByte(),wd=255-wa-wb-wc;
@@ -120,9 +119,10 @@ namespace SirrohDegu
                     if (stream.Position != stream.Length) throw new InvalidDataException("Model has trailing data.");
                     var mesh=new Mesh { name="Degu_Weighted_WolfRig" };
                     mesh.vertices=vertices;
-                    mesh.RecalculateNormals();
                     mesh.uv=uv;
                     mesh.triangles=triangles;
+                    mesh.RecalculateNormals();
+                    mesh.RecalculateTangents();
                     mesh.boneWeights=weights;
                     mesh.RecalculateBounds();
                     return mesh;
