@@ -49,6 +49,20 @@ jobs:
           PY
           test -s release/Degu_Wolf_UV_QA.json
           test -s release/Degu_Wolf_UV_Overlay.png
+      - name: Apply v0.1.9 user-painted Blender Face Sets with UV seam isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/apply_user_facesets_v019.py
+          test -s release/Degu_User_FaceSets_QA.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('release/Degu_User_FaceSets_QA.json'))
+          assert d['status']=='PASS'
+          assert d['annotated_faces']=={'24':8,'25':18,'26':8}
+          assert d['export_vertices']==1509
+          print('PASS user FaceSet 24/25/26 transfer, strict triangle and weight preservation')
+          PY
       - name: Install SteamCMD
         uses: CyberAndrii/setup-steamcmd@v1
       - name: Download Valheim Dedicated Server for game assemblies
@@ -89,7 +103,7 @@ jobs:
           set -euo pipefail
           "$BLENDER_BIN" --background --python-exit-code 2 --python tools/build_blend.py > release/Degu_Blender_Build.log 2>&1 || { tail -n 100 release/Degu_Blender_Build.log; exit 1; }
           grep -q DEGU_BLENDER_QA_PASS release/Degu_Blender_Build.log
-          test -s release/Degu_Wolf_Reweighted_v0.1.8.blend
+          test -s release/Degu_Wolf_Reweighted_v0.1.9.blend
           test -s release/Degu_Blender_QA.json
           tail -n 8 release/Degu_Blender_Build.log
       - name: Install icon rendering library
@@ -122,9 +136,10 @@ jobs:
           git add -f "release/SirrohDegu-${VERSION}.zip" "release/SirRosa-SirrohDegu-${VERSION}.zip" \
             release/SirrohDegu/SirrohDegu.dll release/SirrohDegu/manifest.json \
             release/SirrohDegu/README.md release/SirrohDegu/icon.png \
-            release/Degu_Wolf_Reweighted_v0.1.8.blend release/Degu_Blender_QA.json \
+            release/Degu_Wolf_Reweighted_v0.1.9.blend release/Degu_Blender_QA.json \
             release/Degu_Skinning_QA.json release/Degu_Blender_Build.log \
-            release/Degu_Wolf_UV_QA.json release/Degu_Wolf_UV_Overlay.png
+            release/Degu_Wolf_UV_QA.json release/Degu_Wolf_UV_Overlay.png \
+            release/Degu_User_FaceSets_QA.json
           if ! git diff --cached --quiet; then
             git commit -m "Release tested Sirroh Degu Thunderstore ZIP v${VERSION}"
             git push origin HEAD:main

@@ -12,9 +12,9 @@ spawn Degu
 
 ## Instalacja
 
-**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.1.8.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
+**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.1.9.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
 
-**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.1.8.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
+**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.1.9.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
 
 Model pochodzi z `Degu.blend` i zawiera wagi dla 34 kości kompatybilnych nazwami z oryginalnym wilkiem. Żaden skrypt odpowiedzialny za zachowanie wilka nie jest zastępowany.
 
@@ -105,3 +105,12 @@ Build sprawdza liczbę wierzchołków wnętrz uszu i spodów łap przypisanych d
 - Emisja oczu obniżona z `_EmissionColor=(1.6,1.9,2.35)` do `(.12,.16,.21)` i z `_EmissionIntensity=2` do `.20`. Shader i materiał oryginalnego wilka zachowane.
 
 Nie zmieniono algorytmu wag ani transferu oryginalnych animacji wilka. QA w Blenderze sprawdza deformacje, natomiast faktyczna postawa, kontakt z podłożem i wygląd uszu/emisji wymagają weryfikacji w Valheim.
+
+## v0.1.9 — model po ręcznej korekcie w Blenderze
+- Na podstawie dostarczonego `Degu_Wolf_Reweighted_v0.1.8.blend` z trzema nowymi namalowanymi Face Sets, przygotowano nowy model do instalacji. Wykryte etykiety `24` (8 trójkątów, pierwsze wnętrze ucha), `25` (18 trójkątów, nos) oraz `26` (8 trójkątów, drugie wnętrze ucha).
+- UV tych Face Sets odnoszą się wyłącznie do właściwego wycinka oryginalnego atlasu wilka 256×256: żółty dla wewnętrznych płaszczyzn uszu, zielony dla nosa. Obie małżowiny otrzymują lustrzane współrzędne. Nie tworzymy żadnych nowych materiałów w grze.
+- Współdzielone wierzchołki wzdłuż brzegów nowych Face Sets są duplikowane tylko w tych 34 trójkątach; zapobiega to przypadkowemu przemalowywaniu zewnętrznej części ucha i reszty pyska. Przybywają **32 wierzchołki (1477 → 1509)**. Każda kopia zachowuje pozycję i istniejące wagi.
+- Korekty kości wykonywane przez użytkownika po lewej stronie zostały sprawdzone i lustrzanie odtworzone dla wszystkich 8 par kości przednich i tylnych kończyn w pliku kontrolnym `.blend`. Zapis pozycji spoczynkowych w kodzie moda odpowiada symetrycznie dopasowanemu rigowi.
+- Żadnych zmian w AI wilka, systemie animacji, oswajaniu, dźwiękach, kolizji i naturalnym spawnie (wyłącznie `spawn Degu`).
+- Testy CI obejmują ścisłą liczbę trójkątów trzech regionów, zachowanie wag i indeksów, pełny test deformacji w Blenderze i standardową kompilację pakietu Thunderstore.
+- Do oceny działania w Valheim konieczny jest ponowny test gry. Plik źródłowy użytkownika i testowa paczka nie są tym samym co zweryfikowana animacja runtime.
