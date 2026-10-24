@@ -62,7 +62,7 @@ def main():
             uv_layer.data[loop_index].uv=uvs[vertex]
     # Pack the exact original in-game Wolf atlas only for Blender UV review.
     # No extra material is introduced into the runtime mod.
-    atlas_path=ROOT/'.ci-reference'/'Wolf_original_atlas.png'
+    atlas_path=ROOT/'Assets'/'Reference'/'Wolf_Original_Albedo.png'
     if atlas_path.exists():
         img=bpy.data.images.load(str(atlas_path), check_existing=True)
         img.name='Valheim Original Wolf Pixel1 - UV Reference'
