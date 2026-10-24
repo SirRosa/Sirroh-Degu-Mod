@@ -32,12 +32,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p .ci-reference
-          curl -fLsS --retry 3 --connect-timeout 30 \
-            'https://raw.githubusercontent.com/SirRosa/Sirroh-Overhaul/8668af72729b6c772d4da675633ba40f3e5b0004/assets/fur/textures/Wolf%20Pixel1__-4857774300251926957.png' \
-            -o .ci-reference/Wolf_original_atlas.png
+          test -s Assets/Reference/Wolf_Original_Albedo.png
           python3 -m pip install --quiet Pillow
-          python3 tools/retarget_wolf_uv.py --atlas .ci-reference/Wolf_original_atlas.png
+          python3 tools/retarget_wolf_uv.py --atlas Assets/Reference/Wolf_Original_Albedo.png
           test -s release/Degu_Wolf_UV_QA.json
           test -s release/Degu_Wolf_UV_Overlay.png
       - name: Install SteamCMD
