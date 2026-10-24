@@ -65,7 +65,6 @@ namespace SirrohDegu
         };
 
         private const float VisualScale = 1.30f;
-        private const float GroundOffset = -.19f;
         private static readonly Vector3 DeguPelvis = new Vector3(0f, .19f, -.295f);
 
         internal static void ReplaceMesh(SkinnedMeshRenderer skin, GameObject cloneRoot)
@@ -92,38 +91,79 @@ namespace SirrohDegu
             Mesh model = Load();
             try
             {
-                // Compute an orthonormal, handedness-preserving basis from the
-                // ACTUAL Wolf pose in this prefab (not a guessed Unity axis).
-                // Degu +Z = forward, +Y = up, +X = anatomical right.
-                Vector3 forward = wolfBones[5].position - wolfBones[0].position;
-                Vector3 left = wolfBones[22].position - wolfBones[26].position;
-                if (forward.sqrMagnitude < .00001f || left.sqrMagnitude < .00001f)
-                    throw new InvalidOperationException("Cannot infer Wolf body axes.");
-                forward.Normalize();
-                left = Vector3.ProjectOnPlane(left, forward).normalized;
-                Vector3 up = Vector3.Cross(left, forward).normalized;
-                forward = Vector3.Cross(up, left).normalized;
-                Vector3 right = -left;
-                if (up.sqrMagnitude < .9f || forward.sqrMagnitude < .9f || left.sqrMagnitude < .9f)
-                    throw new InvalidOperationException("Wolf anatomy basis invalid.");
+                // Get the UP vector from Wolf's actual feet-to-thigh axis.
+                // The previous Cross(left, forward) could point DOWN, turning
+                // the body over and placing the feet above the ground.
+                Vector3 originalForward = wolfBones[5].position - wolfBones[0].position;
+                Vector3 originalUp =
+                    (wolfBones[22].position - wolfBones[25].position) +
+                    (wolfBones[26].position - wolfBones[29].position);
+                Vector3 side = wolfBones[22].position - wolfBones[26].position;
+                if (originalForward.sqrMagnitude < .00001f ||
+                    originalUp.sqrMagnitude < .00001f || side.sqrMagnitude < .00001f)
+                    throw new InvalidOperationException("Wolf anatomical basis is degenerate.");
+                Vector3 up = originalUp.normalized;
+                Vector3 forward = Vector3.ProjectOnPlane(originalForward, up).normalized;
+                if (forward.sqrMagnitude < .5f)
+                    throw new InvalidOperationException("Wolf head vector parallel to up.");
+                Vector3 right = Vector3.Cross(up, forward).normalized;
+                up = Vector3.Cross(forward, right).normalized;
+                if (Vector3.Dot(up, originalUp.normalized) < .7f ||
+                    Vector3.Dot(forward, originalForward.normalized) < .25f ||
+                    Mathf.Abs(Vector3.Dot(right, side.normalized)) < .6f)
+                    throw new InvalidOperationException("Wolf axis orientation did not validate.");
 
+                // A mesh without animation must touch the same ground plane as
+                // the original Wolf's skinned mesh in its *bind pose*.
+                // This avoids hardcoded pelvis height and incorrect offsets.
                 Vector3 pelvisWorld = wolfBones[0].position;
-                Vector3 Project(Vector3 point)
+                float originalMinimum = float.PositiveInfinity;
+                foreach (Vector3 vertex in skin.sharedMesh.vertices)
+                {
+                    float h = Vector3.Dot(skin.transform.TransformPoint(vertex), up);
+                    if (h < originalMinimum) originalMinimum = h;
+                }
+                if (float.IsNaN(originalMinimum) || float.IsInfinity(originalMinimum))
+                    throw new InvalidOperationException("Wolf original mesh has no ground reference.");
+
+                Vector3 MapDegu(Vector3 point)
                 {
                     Vector3 p = point - DeguPelvis;
                     return pelvisWorld + VisualScale *
-                        (right*p.x + up*p.y + forward*p.z) + GroundOffset*up;
+                        (right*p.x + up*p.y + forward*p.z);
                 }
+                float deguMinimum = float.PositiveInfinity;
+                foreach (Vector3 vertex in model.vertices)
+                {
+                    float h = Vector3.Dot(MapDegu(vertex), up);
+                    if (h < deguMinimum) deguMinimum = h;
+                }
+                float groundCorrection = originalMinimum - deguMinimum;
+                if (float.IsNaN(groundCorrection) || Mathf.Abs(groundCorrection) > 10f)
+                    throw new InvalidOperationException("Degu ground calibration invalid.");
 
-                // Convert mesh vertices AND the anatomical bones using one
-                // common basis. Previous code only scaled vertices and bound
-                // them to Wolf's unrelated joint locations: that caused the
-                // extreme stretching and floating limbs.
+                Vector3 Project(Vector3 point)
+                {
+                    return MapDegu(point) + groundCorrection * up;
+                }
+                // Under the right-handed transform above, the source mesh's
+                // negative X side can map to the original Wolf's positive
+                // anatomical side. In that case swap L/R ANIMATION DRIVERS,
+                // never vertex groups or mesh topology.
+                bool swapSides = Vector3.Dot(right, side.normalized) > 0f;
+                InstanceLog("Degu axis QA: up-to-leg=" +
+                    Vector3.Dot(up, originalUp.normalized).ToString("F2") +
+                    ", forwards=" + Vector3.Dot(forward, originalForward.normalized).ToString("F2") +
+                    ", swapSides=" + swapSides +
+                    ", groundCorrection=" + groundCorrection.ToString("F3"));
+
+                // Fit vertices and bones through exactly the same transformation.
                 Vector3[] vertices = model.vertices;
                 for (int i=0; i<vertices.Length; i++)
                     vertices[i] = skin.transform.InverseTransformPoint(Project(vertices[i]));
                 model.vertices = vertices;
 
+                Transform[] drivenWolf = DeguRigDriver.MapSourceBones(wolfBones, swapSides);
                 Transform[] fitted = new Transform[Names.Length];
                 GameObject rigRoot = new GameObject("SirrohDegu_FittedSkeleton");
                 rigRoot.transform.SetParent(skin.transform, false);
@@ -134,9 +174,9 @@ namespace SirrohDegu
                     joint.transform.SetParent(parent, false);
                     fitted[i] = joint.transform;
                     if (Parent[i] < 0)
-                        fitted[i].rotation = wolfBones[i].rotation;
+                        fitted[i].rotation = drivenWolf[i].rotation;
                     else
-                        fitted[i].localRotation = wolfBones[i].localRotation;
+                        fitted[i].localRotation = drivenWolf[i].localRotation;
                     fitted[i].position = Project(DeguJoints[i]);
                 }
 
@@ -145,6 +185,7 @@ namespace SirrohDegu
                     inverseBinds[i] = fitted[i].worldToLocalMatrix * skin.transform.localToWorldMatrix;
                 model.bindposes = inverseBinds;
                 model.RecalculateBounds();
+                DeguAppearance.Apply(skin, model);
                 skin.bones = fitted;
                 skin.rootBone = fitted[0];
                 skin.sharedMesh = model;
@@ -152,9 +193,9 @@ namespace SirrohDegu
                 skin.updateWhenOffscreen = true;
 
                 var driver = cloneRoot.AddComponent<DeguRigDriver>();
-                driver.Configure(skin.transform, wolfBones, fitted);
-                InstanceLog("Degu fitted rig v0.1.2: vertices=" + model.vertexCount +
-                    ", animated joints=34, axes validated, source wolf Animator unchanged.");
+                driver.Configure(skin.transform, drivenWolf, fitted);
+                InstanceLog("Degu fitted rig v0.1.3: vertices=" + model.vertexCount +
+                    ", 34 animated joints, real Wolf ground alignment, opaque Degu materials.");
             }
             catch
             {
@@ -212,6 +253,7 @@ namespace SirrohDegu
                     mesh.triangles=triangles;
                     mesh.RecalculateNormals();
                     mesh.RecalculateTangents();
+                    DeguWeightRepair.Apply(vertices, weights);
                     mesh.boneWeights=weights;
                     mesh.RecalculateBounds();
                     return mesh;

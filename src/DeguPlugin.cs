@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace SirrohDegu
 {
-    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.1.2")]
+    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.1.3")]
     public sealed class DeguPlugin : BaseUnityPlugin
     {
         internal static DeguPlugin Instance;
@@ -25,7 +25,7 @@ namespace SirrohDegu
             Log = Logger;
             _patches = new Harmony("sirroh.valheim.degu");
             _patches.PatchAll(typeof(DeguPlugin).Assembly);
-            Logger.LogInfo("Sirroh Degu v0.1.2 loaded. Waiting for ZNetScene prefab registry.");
+            Logger.LogInfo("Sirroh Degu v0.1.3 loaded. Waiting for ZNetScene prefab registry.");
         }
 
         private void OnDestroy()
