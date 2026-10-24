@@ -2,18 +2,16 @@ using System;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Logging;
-using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
 
 namespace SirrohDegu
 {
-    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.1.7")]
+    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.1.8")]
     public sealed class DeguPlugin : BaseUnityPlugin
     {
         internal static DeguPlugin Instance;
         internal static ManualLogSource Log;
-        internal ConfigEntry<float> PitchCorrection;
 
         // Keep the network prefab under an inactive parent, just like a prefab asset.
         // A clone of this prefab will be active, while the template never runs Awake.
@@ -25,13 +23,10 @@ namespace SirrohDegu
         {
             Instance = this;
             Log = Logger;
-            PitchCorrection = Config.Bind("Model", "PitchCorrectionDegrees", 15f,
-                "Pitch-down correction in degrees for the fitted Degu model (default 15)."
-                + " Positive lowers the muzzle relative to the haunches; "
-                + "only read when the Degu prefab is registered.");
+
             _patches = new Harmony("sirroh.valheim.degu");
             _patches.PatchAll(typeof(DeguPlugin).Assembly);
-            Logger.LogInfo("Sirroh Degu v0.1.7 loaded. Waiting for ZNetScene prefab registry.");
+            Logger.LogInfo("Sirroh Degu v0.1.8 loaded. Waiting for ZNetScene prefab registry.");
         }
 
         private void OnDestroy()
