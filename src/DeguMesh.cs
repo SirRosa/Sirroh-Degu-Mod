@@ -118,9 +118,17 @@ namespace SirrohDegu
                 // This avoids hardcoded pelvis height and incorrect offsets.
                 Vector3 pelvisWorld = wolfBones[0].position;
                 float originalMinimum = float.PositiveInfinity;
-                foreach (Vector3 vertex in skin.sharedMesh.vertices)
+                // Built-in game meshes can have isReadable=false. Mesh.bounds
+                // is always accessible, and its eight corners safely provide
+                // the same bind-space ground reference.
+                Bounds bounds = skin.sharedMesh.bounds;
+                for (int xi = -1; xi <= 1; xi += 2)
+                for (int yi = -1; yi <= 1; yi += 2)
+                for (int zi = -1; zi <= 1; zi += 2)
                 {
-                    float h = Vector3.Dot(skin.transform.TransformPoint(vertex), up);
+                    Vector3 corner = bounds.center + Vector3.Scale(bounds.extents,
+                        new Vector3(xi, yi, zi));
+                    float h = Vector3.Dot(skin.transform.TransformPoint(corner), up);
                     if (h < originalMinimum) originalMinimum = h;
                 }
                 if (float.IsNaN(originalMinimum) || float.IsInfinity(originalMinimum))
