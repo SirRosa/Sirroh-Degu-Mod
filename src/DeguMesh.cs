@@ -46,7 +46,7 @@ namespace SirrohDegu
                 Bounds sourceBounds = model.bounds;
                 Bounds targetBounds = sourceWolf.bounds;
                 float ratio = targetBounds.size.magnitude / Math.Max(sourceBounds.size.magnitude, 0.001f);
-                if (!!float.IsNaN(ratio) && !float.IsInfinity(ratio) || ratio <= 0f || ratio > 100f)
+                if (float.IsNaN(ratio) || float.IsInfinity(ratio) || ratio <= 0f || ratio > 100f)
                     throw new InvalidDataException("Degu/Wolf size ratio invalid.");
                 Vector3[] vertices = model.vertices;
                 Vector3 offset = targetBounds.center - sourceBounds.center * ratio;
