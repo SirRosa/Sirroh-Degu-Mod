@@ -183,7 +183,7 @@ def main():
       "wolf_texture_sha":EXPECTED_GIT_SHA,
       "vertices":n,"facesets":len(set(ids.tolist())),"eyes_left":int(sum(ids==21)),
       "eyes_right":int(sum(ids==22)),
-      "nose_px":list(NOSE_PIXEL),"eye_dots_px":[[39,67],[184,97]],
+      "nose_px":list(NOSE_PIXEL),"eye_dots_px":[[39.5,67.5],[183.5,96.5]],
       "mirrored_pairs_checked":len(mirror_errors),
       "mirrored_uv_error_max_px":max(mirror_errors) if mirror_errors else None,
       "coat_points_outside_user_outline":len(away),
