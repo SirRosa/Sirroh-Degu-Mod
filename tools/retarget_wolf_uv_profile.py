@@ -62,13 +62,20 @@ def mask_and_points():
 def clamp(x,a,b):
     return min(b,max(a,x))
 
+def is_inner_ear(label,p):
+    # ONLY the recessed forward-central wedge. The outside, tips and rim
+    # remain normal wolf fur. Mirrored geometric predicate, independent of
+    # discontinuous vertex normals or UV islands.
+    x,y,z=p
+    return label==15 and .398<y<.456 and .069<abs(x)<.114 and z>.218
+
 def project(label,p,normal,mask,inside):
     x,y,z=p
     # True anatomical surface orientation, not Face Set alone:
     # the same ear set contains INNER and OUTER ear surfaces, and the
     # same paw Face Set contains upper fur and underside pads.
     nx,ny,nz=normal
-    if label==15 and y>.365 and nz>.17:
+    if is_inner_ear(label,p):
         cx,cy=INNER_EAR
         return ((cx+clamp((abs(x)-.10)*70.,-2.5,2.5)+.5)/256.,
                 1.-(cy+clamp((y-.40)*75.,-3.,3.)+.5)/256.)
@@ -136,7 +143,7 @@ def main():
         normals[b]+=norm
         normals[c]+=norm
     normals/=np.maximum(np.linalg.norm(normals,axis=1)[:,None],1e-9)
-    ear_inner_count=int(np.sum((ids==15)&(points[:,1]>.365)&(normals[:,2]>.17)))
+    ear_inner_count=sum(is_inner_ear(int(ids[i]),points[i]) for i in range(n))
     sole_count=int(np.sum(np.isin(ids,[2,19])&(points[:,1]<.075)&(normals[:,1]<-.10)))
     old_uv=np.asarray([struct.unpack_from("<ee",raw,15+i*17) for i in range(n)])
     new_uv=np.zeros((n,2),dtype=float)
@@ -170,7 +177,7 @@ def main():
     # OUTSIDE the red coat silhouette (yellow and cyan user annotations).
     # Only the ordinary furry coat must remain inside the red outline.
     special=np.isin(ids,[21,22,23])
-    special |= (ids==15)&(points[:,1]>.365)&(normals[:,2]>.17)
+    special |= np.asarray([is_inner_ear(int(ids[i]),points[i]) for i in range(n)])
     special |= np.isin(ids,[2,19])&(points[:,1]<.075)&(normals[:,1]<-.10)
     away=[i for i in range(n) if not special[i] and
           not np.asarray(mask)[int(clamp(round(xy[i,1]),0,255)),
@@ -185,7 +192,7 @@ def main():
       "eyes_right":int(sum(ids==22)),
       "nose_px":list(NOSE_PIXEL),"eye_dots_px":[[39.5,67.5],[183.5,96.5]],
       "inner_ear_pixel":list(INNER_EAR),"underside_paw_pixel":list(PAW_PAD),
-      "inner_ear_vertices":ear_inner_count,"paw_sole_vertices":sole_count,
+      "inner_ear_vertices":ear_inner_count,"ear_vertices_total":int(np.sum(ids==15)),"paw_sole_vertices":sole_count,
       "mirrored_pairs_checked":len(mirror_errors),
       "mirrored_uv_error_max_px":max(mirror_errors) if mirror_errors else None,
       "coat_points_outside_user_outline":len(away),
@@ -207,7 +214,7 @@ def main():
     for i,(u,v) in enumerate(new_uv):
         px=int(u*1024);py=int((1.-v)*1024)
         if ids[i] in (21,22):color=(231,134,35,175)
-        elif ids[i]==15 and points[i,1]>.365 and normals[i,2]>.17:color=(255,243,35,170)
+        elif is_inner_ear(int(ids[i]),points[i]):color=(255,243,35,170)
         elif ids[i] in (2,19) and points[i,1]<.075 and normals[i,1]<-.10:color=(68,211,239,175)
         elif ids[i] in (2,5,8,17,18,19,20):color=(255,190,22,125)
         else:color=(55,240,105,100)
