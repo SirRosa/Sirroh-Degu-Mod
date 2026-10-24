@@ -1,0 +1,25 @@
+{
+  "status": "PASS",
+  "source": "User edited Degu_Wolf_Reweighted_v0.1.8.blend; UV correction from reviewed v0.1.9.blend",
+  "original_vertices": 1477,
+  "export_vertices": 1509,
+  "triangles": 2580,
+  "annotated_faces": {
+    "24": 8,
+    "25": 18,
+    "26": 8
+  },
+  "new_vertices_by_faceset": {
+    "24": 9,
+    "25": 14,
+    "26": 9
+  },
+  "original_weights_preserved": true,
+  "original_triangle_order_preserved": true,
+  "inner_ear_regions": [
+    24,
+    26
+  ],
+  "nose_region": 25,
+  "other_texture_regions_unchanged": true
+}
