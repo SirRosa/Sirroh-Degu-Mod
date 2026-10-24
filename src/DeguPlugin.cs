@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
@@ -72,17 +73,59 @@ namespace SirrohDegu
             return _prefabHolder;
         }
 
+        private static object GetNamedPrefabs(ZNetScene scene)
+        {
+            // In Valheim 1.0, m_namedPrefabs is a private field; its backing
+            // implementation can differ from the older Dictionary API.
+            FieldInfo field = AccessTools.Field(typeof(ZNetScene), "m_namedPrefabs");
+            if (field == null) throw new MissingFieldException("ZNetScene.m_namedPrefabs");
+            object lookup = field.GetValue(scene);
+            if (lookup == null) throw new InvalidOperationException("ZNetScene.m_namedPrefabs is null.");
+            return lookup;
+        }
+
+        private static bool TryGetNamedPrefab(object lookup, int hash, out GameObject value)
+        {
+            MethodInfo method = lookup.GetType().GetMethod("TryGetValue",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                null, new[] { typeof(int), typeof(GameObject).MakeByRefType() }, null);
+            if (method == null) throw new MissingMethodException(lookup.GetType().FullName, "TryGetValue");
+            object[] args = { hash, null };
+            bool found = (bool)method.Invoke(lookup, args);
+            value = found ? (GameObject)args[1] : null;
+            return found;
+        }
+
+        private static void AddNamedPrefab(object lookup, int hash, GameObject prefab)
+        {
+            MethodInfo method = lookup.GetType().GetMethod("Add",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                null, new[] { typeof(int), typeof(GameObject) }, null);
+            if (method == null) throw new MissingMethodException(lookup.GetType().FullName, "Add");
+            method.Invoke(lookup, new object[] { hash, prefab });
+        }
+
+        private static void RemoveNamedPrefab(object lookup, int hash)
+        {
+            MethodInfo method = lookup.GetType().GetMethod("Remove",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                null, new[] { typeof(int) }, null);
+            if (method == null) throw new MissingMethodException(lookup.GetType().FullName, "Remove");
+            method.Invoke(lookup, new object[] { hash });
+        }
+
         private static void Register(ZNetScene scene)
         {
-            if (scene == null || scene.m_prefabs == null || scene.m_namedPrefabs == null)
+            if (scene == null || scene.m_prefabs == null)
             {
                 Log?.LogWarning("ZNetScene prefab collections unavailable; Degu not registered.");
                 return;
             }
 
-            int hash = "Degu".GetStableHashCode();
+            int hash = StringExtensionMethods.GetStableHashCode("Degu");
+            object namedPrefabs = GetNamedPrefabs(scene);
             GameObject existing;
-            if (scene.m_namedPrefabs.TryGetValue(hash, out existing))
+            if (TryGetNamedPrefab(namedPrefabs, hash, out existing))
             {
                 if (existing != null && existing.name == "Degu")
                 {
@@ -171,11 +214,11 @@ namespace SirrohDegu
             if (!scene.m_prefabs.Contains(_deguPrefab))
                 scene.m_prefabs.Add(_deguPrefab);
 
-            scene.m_namedPrefabs.Add(hash, _deguPrefab);
+            AddNamedPrefab(namedPrefabs, hash, _deguPrefab);
             GameObject resolved = scene.GetPrefab("Degu");
             if (resolved != _deguPrefab)
             {
-                scene.m_namedPrefabs.Remove(hash);
+                RemoveNamedPrefab(namedPrefabs, hash);
                 scene.m_prefabs.Remove(_deguPrefab);
                 throw new InvalidOperationException("ZNetScene.GetPrefab('Degu') failed after registration.");
             }
