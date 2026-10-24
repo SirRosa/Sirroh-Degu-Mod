@@ -121,27 +121,37 @@ namespace SirrohDegu
                 Vector3 pelvisWorld = wolfBones[0].position;
                 float targetFloorWorldY = cloneRoot.transform.position.y + 0.025f;
 
-                // A pitch calibration rotates BOTH the model vertices and
-                // the fitted joints before binding; no skinning mismatch.
-                // Positive angle about model-right lowers the front (+Z).
-                float pitch = Mathf.Clamp(
-                    DeguPlugin.Instance != null ?
-                        DeguPlugin.Instance.PitchCorrection.Value : 15f,
-                    -25f, 25f);
-                Quaternion levelRotation = Quaternion.AngleAxis(pitch, right);
+                // Source Degu is already level (+Y up, same resting height
+                // of front/rear feet). Disable old artificial body pitch.
+                Quaternion levelRotation = Quaternion.identity;
                 Vector3 MapDegu(Vector3 point)
                 {
                     Vector3 p = point - DeguPelvis;
                     Vector3 basis = right*p.x + up*p.y + forward*p.z;
                     return pelvisWorld + VisualScale * (levelRotation * basis);
                 }
-                float deguMinimum = float.PositiveInfinity;
-                foreach (Vector3 vertex in model.vertices)
+                // Anchor visual ground to FOOT geometry, never tail/belly.
+                float footMinimum = float.PositiveInfinity;
+                int[] footBones = {17,21,25,29};
+                BoneWeight[] weights = model.boneWeights;
+                Vector3[] rawVertices = model.vertices;
+                for (int v=0;v<rawVertices.Length;v++)
                 {
-                    float h = Vector3.Dot(MapDegu(vertex), up);
-                    if (h < deguMinimum) deguMinimum = h;
+                    BoneWeight w=weights[v];
+                    float influence=0f;
+                    foreach (int bone in footBones)
+                    {
+                        if (w.boneIndex0==bone) influence+=w.weight0;
+                        if (w.boneIndex1==bone) influence+=w.weight1;
+                        if (w.boneIndex2==bone) influence+=w.weight2;
+                        if (w.boneIndex3==bone) influence+=w.weight3;
+                    }
+                    if (influence>=.25f)
+                        footMinimum=Mathf.Min(footMinimum,MapDegu(rawVertices[v]).y);
                 }
-                float groundCorrection = targetFloorWorldY - deguMinimum;
+                if (float.IsNaN(footMinimum) || float.IsInfinity(footMinimum))
+                    throw new InvalidOperationException("Degu weighted paw geometry missing.");
+                float groundCorrection=targetFloorWorldY-footMinimum;
                 if (float.IsNaN(groundCorrection) || Mathf.Abs(groundCorrection) > 10f)
                     throw new InvalidOperationException("Degu ground calibration invalid.");
 
@@ -229,45 +239,17 @@ namespace SirrohDegu
                 skin.localBounds = model.bounds;
                 skin.updateWhenOffscreen = true;
 
-                // Record the lowest weighted mesh vertex in each paw's own
-                // bone space. We can clamp actual paw contact each LateUpdate
-                // without costly physics raycasts or CPU skinning.
-                int[] footBones = { 17, 21, 25, 29 };
-                Vector3[] footContacts = new Vector3[4];
-                BoneWeight[] skinWeights = model.boneWeights;
-                Vector3[] fittedVerts = model.vertices;
-                for (int f=0; f<4; f++)
-                {
-                    int chosen = -1;
-                    float minY = float.PositiveInfinity;
-                    for (int v=0; v<fittedVerts.Length; v++)
-                    {
-                        BoneWeight w = skinWeights[v];
-                        int boneIndex = footBones[f];
-                        float influence = 0f;
-                        if (w.boneIndex0 == boneIndex) influence += w.weight0;
-                        if (w.boneIndex1 == boneIndex) influence += w.weight1;
-                        if (w.boneIndex2 == boneIndex) influence += w.weight2;
-                        if (w.boneIndex3 == boneIndex) influence += w.weight3;
-                        if (influence < .2f) continue;
-                        Vector3 world = skin.transform.TransformPoint(fittedVerts[v]);
-                        if (world.y < minY) { minY = world.y; chosen = v; }
-                    }
-                    if (chosen < 0) throw new InvalidOperationException(
-                        "Degu has no contact vertices for " + Names[footBones[f]]);
-                    footContacts[f] = fitted[footBones[f]].InverseTransformPoint(
-                        skin.transform.TransformPoint(fittedVerts[chosen]));
-                }
+                // v0.1.8 raised animated PAW BONES to the prefab origin,
+                // retracting the legs into the torso. Never override limbs.
                 var driver = cloneRoot.AddComponent<DeguRigDriver>();
-                driver.Configure(skin.transform, drivenWolf, fitted,
-                    cloneRoot.transform, footContacts);
+                driver.Configure(skin.transform, drivenWolf, fitted);
                 var eyeGlow = cloneRoot.AddComponent<DeguEyeEmission>();
                 eyeGlow.Configure(skin);
                 InstanceLog("Degu shader QA: original " + originalWolfMaterial.name +
                     ", eye triangles doubled=" + eyeIndices.Count/3 +
-                    ", model pitch correction=" + pitch.ToString("F1") + " deg.");
-                InstanceLog("Degu fitted rig v0.1.7: vertices=" + model.vertexCount +
-                    ", 34 joints, grounded actor origin and four paw contacts, original Wolf materials.");
+                    ", pitch correction disabled.");
+                InstanceLog("Degu fitted rig v0.1.8: vertices=" + model.vertexCount +
+                    ", 34 joints, grounded using paw vertices without leg repositioning, original Wolf materials.");
             }
             catch
             {
