@@ -14,17 +14,24 @@ namespace SirrohDegu
         [SerializeField] private Transform[] fittedDegu;
         [SerializeField] private Vector3 originalRootAtBind;
         [SerializeField] private Vector3 fittedRootAtBind;
+        [SerializeField] private Transform actorRoot;
+        [SerializeField] private Vector3[] pawContacts;
+        private float maxPawCorrection;
 
-        internal void Configure(Transform renderer, Transform[] original, Transform[] fitted)
+        internal void Configure(Transform renderer, Transform[] original,
+            Transform[] fitted, Transform creature, Vector3[] contacts)
         {
             if (renderer == null || original == null || fitted == null ||
-                original.Length != 34 || fitted.Length != 34)
+                original.Length != 34 || fitted.Length != 34 ||
+                creature == null || contacts == null || contacts.Length != 4)
                 throw new ArgumentException("Degu needs 34 original and fitted bones.");
             rendererRoot = renderer;
             originalWolf = original;
             fittedDegu = fitted;
             originalRootAtBind = renderer.InverseTransformPoint(original[0].position);
             fittedRootAtBind = fitted[0].localPosition;
+            actorRoot = creature;
+            pawContacts = (Vector3[])contacts.Clone();
             initialLimbRotations = new[] {
                 original[15].localRotation, original[19].localRotation,
                 original[22].localRotation, original[26].localRotation
@@ -89,6 +96,28 @@ namespace SirrohDegu
                 if (originalWolf[i] != null && fittedDegu[i] != null)
                     fittedDegu[i].localRotation = originalWolf[i].localRotation;
 
+            // Clamp four animated toes to the actor's collision-ground reference.
+            // Correct only the terminal paw bone, leaving vanilla animation
+            // chains untouched. No raycasts and no mesh CPU skinning in Update.
+            if (actorRoot != null && pawContacts != null && pawContacts.Length == 4)
+            {
+                const float clearance = .018f;
+                float floorY = actorRoot.position.y + clearance;
+                int[] pawIndices = { 17, 21, 25, 29 };
+                for (int p=0;p<4;p++)
+                {
+                    Transform toe = fittedDegu[pawIndices[p]];
+                    if (toe == null) continue;
+                    float lowestY = toe.TransformPoint(pawContacts[p]).y;
+                    float raise = Mathf.Clamp(floorY - lowestY, 0f, .22f);
+                    if (raise > .0005f)
+                    {
+                        toe.position += Vector3.up * raise;
+                        maxPawCorrection = Mathf.Max(maxPawCorrection, raise);
+                    }
+                }
+            }
+
             if (!diagnosticComplete && initialLimbRotations != null &&
                 initialLimbRotations.Length == 4)
             {
@@ -112,7 +141,8 @@ namespace SirrohDegu
                 {
                     diagnosticComplete=true;
                     DeguPlugin.Log?.LogInfo("Degu ANIM QA: maximum original Wolf limb motion in 10 seconds = "+
-                        maxLimbAngle.ToString("F2")+" deg. Test while Degu walks.");
+                        maxLimbAngle.ToString("F2")+" deg; maximum paw correction="+
+                        maxPawCorrection.ToString("F3")+"m. Test while Degu walks.");
                 }
             }
         }
