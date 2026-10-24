@@ -33,7 +33,7 @@ namespace SirrohDegu
             }
             if (material.HasProperty("_EmissionColor"))
             {
-                props.SetColor("_EmissionColor", new Color(1.6f, 1.9f, 2.35f, 1f));
+                props.SetColor("_EmissionColor", new Color(.12f, .16f, .21f, 1f));
             }
             else if (!warned)
             {
@@ -42,7 +42,7 @@ namespace SirrohDegu
             }
             // Custom/Creature may use either parameter in different variants.
             if (material.HasProperty("_EmissionIntensity"))
-                props.SetFloat("_EmissionIntensity", 2f);
+                props.SetFloat("_EmissionIntensity", .20f);
             eyeRenderer.SetPropertyBlock(props, 1);
         }
     }
