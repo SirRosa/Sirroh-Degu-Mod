@@ -70,11 +70,11 @@ def project(label,p,normal,mask,inside):
     nx,ny,nz=normal
     if label==15 and y>.365 and nz>.17:
         cx,cy=INNER_EAR
-        return ((cx+clamp((x-(-.10 if x<0 else .10))*70.,-2.5,2.5)+.5)/256.,
+        return ((cx+clamp((abs(x)-.10)*70.,-2.5,2.5)+.5)/256.,
                 1.-(cy+clamp((y-.40)*75.,-3.,3.)+.5)/256.)
     if label in (2,19) and y<.075 and ny<-.20:
         cx,cy=PAW_PAD
-        return ((cx+clamp(x*18.,-3.2,3.2)+.5)/256.,
+        return ((cx+clamp(abs(x)*18.,-3.2,3.2)+.5)/256.,
                 1.-(cy+clamp((z-.035)*16.,-4.,4.)+.5)/256.)
     # Degu X is side; BOTH SIDES deliberately use the SAME Wolf profile
     # (no 1.25-pixel left/right offsets, no second copy of the atlas).
@@ -126,6 +126,18 @@ def main():
         (ROOT/"Assets"/"DeguFaceSets.zlib.b64").read_text().strip())),dtype=np.uint8)
     assert len(ids)==n
     points=np.asarray([struct.unpack_from("<hhh",raw,9+i*17) for i in range(n)],dtype=float)/16384.
+    # Calculate per-vertex normals to distinguish ear interiors and toe pads.
+    tris=np.frombuffer(raw,dtype="<u2",count=nindices,offset=9+n*17).reshape(-1,3)
+    normals=np.zeros_like(points)
+    for tri in tris:
+        a,b,c=map(int,tri)
+        norm=np.cross(points[b]-points[a],points[c]-points[a])
+        normals[a]+=norm
+        normals[b]+=norm
+        normals[c]+=norm
+    normals/=np.maximum(np.linalg.norm(normals,axis=1)[:,None],1e-9)
+    ear_inner_count=int(np.sum((ids==15)&(points[:,1]>.365)&(normals[:,2]>.17)))
+    sole_count=int(np.sum(np.isin(ids,[2,19])&(points[:,1]<.075)&(normals[:,1]<-.20)))
     old_uv=np.asarray([struct.unpack_from("<ee",raw,15+i*17) for i in range(n)])
     new_uv=np.zeros((n,2),dtype=float)
     for i in range(n):
