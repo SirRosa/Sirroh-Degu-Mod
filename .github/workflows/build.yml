@@ -28,6 +28,18 @@ jobs:
           python3 -m pip install --quiet numpy
           python3 tools/rebuild_skin.py
           test -s release/Degu_Skinning_QA.json
+      - name: Inspect original Valheim Wolf UV atlas and retarget Degu Face Sets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-reference
+          curl -fLsS --retry 3 --connect-timeout 30 \
+            'https://raw.githubusercontent.com/SirRosa/Sirroh-Overhaul/8668af72729b6c772d4da675633ba40f3e5b0004/assets/fur/textures/Wolf%20Pixel1__-4857774300251926957.png' \
+            -o .ci-reference/Wolf_original_atlas.png
+          python3 -m pip install --quiet Pillow
+          python3 tools/retarget_wolf_uv.py --atlas .ci-reference/Wolf_original_atlas.png
+          test -s release/Degu_Wolf_UV_QA.json
+          test -s release/Degu_Wolf_UV_Overlay.png
       - name: Install SteamCMD
         uses: CyberAndrii/setup-steamcmd@v1
       - name: Download Valheim Dedicated Server for game assemblies
@@ -68,7 +80,7 @@ jobs:
           set -euo pipefail
           "$BLENDER_BIN" --background --python-exit-code 2 --python tools/build_blend.py > release/Degu_Blender_Build.log 2>&1 || { tail -n 100 release/Degu_Blender_Build.log; exit 1; }
           grep -q DEGU_BLENDER_QA_PASS release/Degu_Blender_Build.log
-          test -s release/Degu_Wolf_Reweighted_v0.1.4.blend
+          test -s release/Degu_Wolf_Reweighted_v0.1.5.blend
           test -s release/Degu_Blender_QA.json
           tail -n 8 release/Degu_Blender_Build.log
       - name: Install icon rendering library
@@ -101,8 +113,9 @@ jobs:
           git add -f "release/SirrohDegu-${VERSION}.zip" "release/SirRosa-SirrohDegu-${VERSION}.zip" \
             release/SirrohDegu/SirrohDegu.dll release/SirrohDegu/manifest.json \
             release/SirrohDegu/README.md release/SirrohDegu/icon.png \
-            release/Degu_Wolf_Reweighted_v0.1.4.blend release/Degu_Blender_QA.json \
-            release/Degu_Skinning_QA.json release/Degu_Blender_Build.log
+            release/Degu_Wolf_Reweighted_v0.1.5.blend release/Degu_Blender_QA.json \
+            release/Degu_Skinning_QA.json release/Degu_Blender_Build.log \
+            release/Degu_Wolf_UV_QA.json release/Degu_Wolf_UV_Overlay.png
           if ! git diff --cached --quiet; then
             git commit -m "Release tested Sirroh Degu Thunderstore ZIP v${VERSION}"
             git push origin HEAD:main

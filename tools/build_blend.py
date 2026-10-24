@@ -55,11 +55,21 @@ def main():
     mesh.from_pydata(verts,[],inds.tolist())
     mesh.update()
     assert len(mesh.vertices)==1477 and len(mesh.polygons)==2580
-    uv_layer=mesh.uv_layers.new(name='Degu_Original_UV')
+    uv_layer=mesh.uv_layers.new(name='Wolf_Valheim_Original_Albedo_UV')
     for poly in mesh.polygons:
         for loop_index in poly.loop_indices:
             vertex=mesh.loops[loop_index].vertex_index
             uv_layer.data[loop_index].uv=uvs[vertex]
+    # Pack the exact original in-game Wolf atlas only for Blender UV review.
+    # No extra material is introduced into the runtime mod.
+    atlas_path=ROOT/'.ci-reference'/'Wolf_original_atlas.png'
+    if atlas_path.exists():
+        img=bpy.data.images.load(str(atlas_path), check_existing=True)
+        img.name='Valheim Original Wolf Pixel1 - UV Reference'
+        img.pack()
+        ob_atlas=img.name
+    else:
+        ob_atlas='not available'
     fs=mesh.attributes.new('.sculpt_face_set','INT','FACE')
     for face in mesh.polygons:
         fs.data[face.index].value=int(collections.Counter(int(labels[v]) for v in face.vertices).most_common(1)[0][0])
@@ -128,12 +138,13 @@ def main():
     for name in ('L Thigh','R Thigh','L UpperArm','R UpperArm'):
         assert counts[name]>8,(name,counts[name])
     ob['geometry_source']='Degu.blend: 1325 vertices / UV split to 1477 for runtime'
+    ob['albedo_atlas_reference']=ob_atlas
     ob['FaceSets']='Original per-vertex labels transferred to Blender faces'
     ob['skin']='REBUILT FROM FACE SETS, max 4 weights, normalized'
     rig['animation_source']='Valheim vanilla Wolf rig; game controls an independent fitted Degu skeleton'
     rig.show_in_front=True
     arm.display_type='STICK'
-    output=ROOT/'release'/'Degu_Wolf_Reweighted_v0.1.4.blend'
+    output=ROOT/'release'/'Degu_Wolf_Reweighted_v0.1.5.blend'
     output.parent.mkdir(parents=True,exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=str(output),check_existing=False)
     report={'status':'PASS','blender':'NATIVE Blender save + evaluated modifier pose tests',
