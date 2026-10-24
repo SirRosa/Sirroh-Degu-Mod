@@ -12,9 +12,9 @@ spawn Degu
 
 ## Instalacja
 
-**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.1.7.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
+**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.1.8.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
 
-**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.1.7.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
+**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.1.8.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
 
 Model pochodzi z `Degu.blend` i zawiera wagi dla 34 kości kompatybilnych nazwami z oryginalnym wilkiem. Żaden skrypt odpowiedzialny za zachowanie wilka nie jest zastępowany.
 
@@ -96,3 +96,12 @@ Nie zmieniano sztucznie wag z wersji 0.1.4. Mapowanie atlasu jest eksperymentaln
 - Pozycjonowanie modelu i korekta kontaktów łap z v0.1.6 zachowane; test gry pozostaje konieczny.
 
 Build sprawdza liczbę wierzchołków wnętrz uszu i spodów łap przypisanych do specjalnych obszarów. Blender pokazuje wynik na prawdziwej teksturze wilka, ale w grze nadal jest ładowana wyłącznie tekstura Valheim.
+
+## v0.1.8 — poprawka regresji v0.1.7
+
+- Przywrócono naturalny poziom modelu Degusa: źródłowy mesh ma front i tył na podobnej wysokości, dlatego usunięto sztuczne 15° pochylenia. Opcja `PitchCorrectionDegrees` z poprzedniej wersji jest całkowicie ignorowana nawet w istniejącym pliku konfiguracji.
+- Usunięto nienaturalną korektę w `DeguRigDriver.LateUpdate`, która podnosiła końcowe kości wszystkich łap do punktu bazowego prefaba. Powodowało to chowanie łap wewnątrz brzucha. Teraz żadne kości łap nie są ręcznie podnoszone. Wysokość początkowa jest obliczana z faktycznych wierzchołków łap o wadze co najmniej 0,25, nie z najniższego punktu ogona czy korpusu.
+- Żółta strefa oryginalnej tekstury wilka jest nakładana tylko na mały przedni/środkowy obszar wnętrza małżowiny. Tył, obrzeże i powierzchnia zewnętrzna ucha zachowują teksturę futra. Audyt CI wymaga, aby ten obszar stanowił poniżej 30% wierzchołków uszu.
+- Emisja oczu obniżona z `_EmissionColor=(1.6,1.9,2.35)` do `(.12,.16,.21)` i z `_EmissionIntensity=2` do `.20`. Shader i materiał oryginalnego wilka zachowane.
+
+Nie zmieniono algorytmu wag ani transferu oryginalnych animacji wilka. QA w Blenderze sprawdza deformacje, natomiast faktyczna postawa, kontakt z podłożem i wygląd uszu/emisji wymagają weryfikacji w Valheim.
