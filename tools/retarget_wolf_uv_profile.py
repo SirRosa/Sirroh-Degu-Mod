@@ -72,7 +72,7 @@ def project(label,p,normal,mask,inside):
         cx,cy=INNER_EAR
         return ((cx+clamp((abs(x)-.10)*70.,-2.5,2.5)+.5)/256.,
                 1.-(cy+clamp((y-.40)*75.,-3.,3.)+.5)/256.)
-    if label in (2,19) and y<.075 and ny<-.20:
+    if label in (2,19) and y<.075 and ny<-.10:
         cx,cy=PAW_PAD
         return ((cx+clamp(abs(x)*18.,-3.2,3.2)+.5)/256.,
                 1.-(cy+clamp((z-.035)*16.,-4.,4.)+.5)/256.)
@@ -137,7 +137,7 @@ def main():
         normals[c]+=norm
     normals/=np.maximum(np.linalg.norm(normals,axis=1)[:,None],1e-9)
     ear_inner_count=int(np.sum((ids==15)&(points[:,1]>.365)&(normals[:,2]>.17)))
-    sole_count=int(np.sum(np.isin(ids,[2,19])&(points[:,1]<.075)&(normals[:,1]<-.20)))
+    sole_count=int(np.sum(np.isin(ids,[2,19])&(points[:,1]<.075)&(normals[:,1]<-.10)))
     old_uv=np.asarray([struct.unpack_from("<ee",raw,15+i*17) for i in range(n)])
     new_uv=np.zeros((n,2),dtype=float)
     for i in range(n):
@@ -200,7 +200,7 @@ def main():
         px=int(u*1024);py=int((1.-v)*1024)
         if ids[i] in (21,22):color=(231,134,35,175)
         elif ids[i]==15 and points[i,1]>.365 and normals[i,2]>.17:color=(255,243,35,170)
-        elif ids[i] in (2,19) and points[i,1]<.075 and normals[i,1]<-.20:color=(68,211,239,175)
+        elif ids[i] in (2,19) and points[i,1]<.075 and normals[i,1]<-.10:color=(68,211,239,175)
         elif ids[i] in (2,5,8,17,18,19,20):color=(255,190,22,125)
         else:color=(55,240,105,100)
         draw.ellipse((px-2,py-2,px+2,py+2),fill=color)
