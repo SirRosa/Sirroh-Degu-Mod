@@ -35,7 +35,12 @@ SIDE_OUTLINE=[
     (70,224),(62,239),(52,235),(64,218),(66,207),
     (62,197),(67,182),(67,162),(57,156),(56,146),
 ]
-EYE_CENTERS={21:(39.,67.,-.062),22:(184.,97.,.062)}
+# The user corrected the eye spots from BLUE to ORANGE (24 Oct).
+# The YELLOW patch is the inner ear; CYAN is the underside of paws.
+EYE_CENTERS={21:(39.5,67.5,-.062),22:(183.5,96.5,.062)}
+INNER_EAR=(99.2,97.3)
+PAW_PAD=(157.9,101.)
+
 NOSE_PIXEL=(65.,136.)
 
 def load_atlas(path):
@@ -57,8 +62,20 @@ def mask_and_points():
 def clamp(x,a,b):
     return min(b,max(a,x))
 
-def project(label,p,mask,inside):
+def project(label,p,normal,mask,inside):
     x,y,z=p
+    # True anatomical surface orientation, not Face Set alone:
+    # the same ear set contains INNER and OUTER ear surfaces, and the
+    # same paw Face Set contains upper fur and underside pads.
+    nx,ny,nz=normal
+    if label==15 and y>.365 and nz>.17:
+        cx,cy=INNER_EAR
+        return ((cx+clamp((x-(-.10 if x<0 else .10))*70.,-2.5,2.5)+.5)/256.,
+                1.-(cy+clamp((y-.40)*75.,-3.,3.)+.5)/256.)
+    if label in (2,19) and y<.075 and ny<-.20:
+        cx,cy=PAW_PAD
+        return ((cx+clamp(x*18.,-3.2,3.2)+.5)/256.,
+                1.-(cy+clamp((z-.035)*16.,-4.,4.)+.5)/256.)
     # Degu X is side; BOTH SIDES deliberately use the SAME Wolf profile
     # (no 1.25-pixel left/right offsets, no second copy of the atlas).
     px=123.-150.*z
@@ -112,7 +129,7 @@ def main():
     old_uv=np.asarray([struct.unpack_from("<ee",raw,15+i*17) for i in range(n)])
     new_uv=np.zeros((n,2),dtype=float)
     for i in range(n):
-        uv=project(int(ids[i]),points[i],np.asarray(mask),inside)
+        uv=project(int(ids[i]),points[i],normals[i],np.asarray(mask),inside)
         struct.pack_into("<ee",raw,15+i*17,*uv)
         new_uv[i]=uv
     for i in range(n):
@@ -169,7 +186,9 @@ def main():
     draw.line(lines+[lines[0]],fill=(255,53,52,210),width=3)
     for i,(u,v) in enumerate(new_uv):
         px=int(u*1024);py=int((1.-v)*1024)
-        if ids[i] in (21,22):color=(58,194,255,115)
+        if ids[i] in (21,22):color=(231,134,35,175)
+        elif ids[i]==15 and points[i,1]>.365 and normals[i,2]>.17:color=(255,243,35,170)
+        elif ids[i] in (2,19) and points[i,1]<.075 and normals[i,1]<-.20:color=(68,211,239,175)
         elif ids[i] in (2,5,8,17,18,19,20):color=(255,190,22,125)
         else:color=(55,240,105,100)
         draw.ellipse((px-2,py-2,px+2,py+2),fill=color)
