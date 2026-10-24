@@ -121,11 +121,19 @@ namespace SirrohDegu
                 Vector3 pelvisWorld = wolfBones[0].position;
                 float targetFloorWorldY = cloneRoot.transform.position.y + 0.025f;
 
+                // A pitch calibration rotates BOTH the model vertices and
+                // the fitted joints before binding; no skinning mismatch.
+                // Positive angle about model-right lowers the front (+Z).
+                float pitch = Mathf.Clamp(
+                    DeguPlugin.Instance != null ?
+                        DeguPlugin.Instance.PitchCorrection.Value : 15f,
+                    -25f, 25f);
+                Quaternion levelRotation = Quaternion.AngleAxis(pitch, right);
                 Vector3 MapDegu(Vector3 point)
                 {
                     Vector3 p = point - DeguPelvis;
-                    return pelvisWorld + VisualScale *
-                        (right*p.x + up*p.y + forward*p.z);
+                    Vector3 basis = right*p.x + up*p.y + forward*p.z;
+                    return pelvisWorld + VisualScale * (levelRotation * basis);
                 }
                 float deguMinimum = float.PositiveInfinity;
                 foreach (Vector3 vertex in model.vertices)
@@ -180,7 +188,41 @@ namespace SirrohDegu
                     inverseBinds[i] = fitted[i].worldToLocalMatrix * skin.transform.localToWorldMatrix;
                 model.bindposes = inverseBinds;
                 model.RecalculateBounds();
-                // Keep the ORIGINAL Wolf materials and their textures; never create replacements.
+                // Split eye triangles into a separately controllable submesh
+                // using the SAME original wolfMat in both slots. Opposite
+                // winding copies ensure mirrored eye spheres remain visible
+                // from both sides despite Unity backface culling.
+                int[] indices = model.triangles;
+                BoneWeight[] bw = model.boneWeights;
+                var coatIndices = new List<int>(indices.Length);
+                var eyeIndices = new List<int>(indices.Length / 2);
+                for (int t=0; t<indices.Length; t+=3)
+                {
+                    int a=indices[t], b=indices[t+1], c=indices[t+2];
+                    bool eyeA = (bw[a].boneIndex0 == 12 || bw[a].boneIndex0 == 13) && bw[a].weight0 > .8f;
+                    bool eyeB = (bw[b].boneIndex0 == 12 || bw[b].boneIndex0 == 13) && bw[b].weight0 > .8f;
+                    bool eyeC = (bw[c].boneIndex0 == 12 || bw[c].boneIndex0 == 13) && bw[c].weight0 > .8f;
+                    if (eyeA && eyeB && eyeC)
+                    {
+                        eyeIndices.Add(a); eyeIndices.Add(b); eyeIndices.Add(c);
+                        eyeIndices.Add(a); eyeIndices.Add(c); eyeIndices.Add(b);
+                    }
+                    else
+                    {
+                        coatIndices.Add(a); coatIndices.Add(b); coatIndices.Add(c);
+                    }
+                }
+                if (eyeIndices.Count == 0 || coatIndices.Count == 0)
+                    throw new InvalidOperationException("Degu eye submeshes could not be classified.");
+                Material originalWolfMaterial = skin.sharedMaterial;
+                if (originalWolfMaterial == null)
+                    throw new InvalidOperationException("Wolf material missing; Degu requires original wolfMat.");
+                model.subMeshCount = 2;
+                model.SetTriangles(coatIndices.ToArray(), 0);
+                model.SetTriangles(eyeIndices.ToArray(), 1);
+                skin.sharedMaterials = new[] { originalWolfMaterial, originalWolfMaterial };
+                // Keep ORIGINAL Valheim Wolf material & its original atlas:
+                // eye emissive is isolated by submesh MaterialPropertyBlock.
                 skin.bones = fitted;
                 skin.rootBone = fitted[0];
                 skin.sharedMesh = model;
@@ -219,7 +261,12 @@ namespace SirrohDegu
                 var driver = cloneRoot.AddComponent<DeguRigDriver>();
                 driver.Configure(skin.transform, drivenWolf, fitted,
                     cloneRoot.transform, footContacts);
-                InstanceLog("Degu fitted rig v0.1.6: vertices=" + model.vertexCount +
+                var eyeGlow = cloneRoot.AddComponent<DeguEyeEmission>();
+                eyeGlow.Configure(skin);
+                InstanceLog("Degu shader QA: original " + originalWolfMaterial.name +
+                    ", eye triangles doubled=" + eyeIndices.Count/3 +
+                    ", model pitch correction=" + pitch.ToString("F1") + " deg.");
+                InstanceLog("Degu fitted rig v0.1.7: vertices=" + model.vertexCount +
                     ", 34 joints, grounded actor origin and four paw contacts, original Wolf materials.");
             }
             catch
