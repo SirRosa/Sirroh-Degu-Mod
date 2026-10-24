@@ -191,7 +191,7 @@ namespace SirrohDegu
                             target = candidate;
                     }
                     if (target == null) throw new InvalidOperationException("Wolf has no skinned mesh renderer.");
-                    DeguMesh.ReplaceMesh(target);
+                    DeguMesh.ReplaceMesh(target, clone);
                     foreach (var other in clone.GetComponentsInChildren<SkinnedMeshRenderer>(true))
                         if (other != target) other.enabled = false;
 

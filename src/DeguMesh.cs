@@ -68,15 +68,15 @@ namespace SirrohDegu
         private const float GroundOffset = -.19f;
         private static readonly Vector3 DeguPelvis = new Vector3(0f, .19f, -.295f);
 
-        internal static void ReplaceMesh(SkinnedMeshRenderer skin)
+        internal static void ReplaceMesh(SkinnedMeshRenderer skin, GameObject cloneRoot)
         {
-            if (skin == null || skin.sharedMesh == null)
+            if (cloneRoot == null || skin == null || skin.sharedMesh == null)
                 throw new InvalidOperationException("Wolf has no valid skinned renderer.");
             if (Names.Length != 34 || Parent.Length != Names.Length || DeguJoints.Length != Names.Length)
                 throw new InvalidOperationException("Degu skeleton reference arrays inconsistent.");
 
             var lookup = new Dictionary<string, Transform>(StringComparer.Ordinal);
-            foreach (Transform t in skin.transform.root.GetComponentsInChildren<Transform>(true))
+            foreach (Transform t in cloneRoot.GetComponentsInChildren<Transform>(true))
                 if (t != null && !lookup.ContainsKey(t.name))
                     lookup.Add(t.name, t);
 
@@ -151,7 +151,7 @@ namespace SirrohDegu
                 skin.localBounds = model.bounds;
                 skin.updateWhenOffscreen = true;
 
-                var driver = skin.transform.root.gameObject.AddComponent<DeguRigDriver>();
+                var driver = cloneRoot.AddComponent<DeguRigDriver>();
                 driver.Configure(skin.transform, wolfBones, fitted);
                 InstanceLog("Degu fitted rig v0.1.2: vertices=" + model.vertexCount +
                     ", animated joints=34, axes validated, source wolf Animator unchanged.");

@@ -7,7 +7,7 @@ namespace SirrohDegu
     // The independent Degu armature keeps anatomically fitted BONE POSITIONS,
     // so rotations do not stretch the mesh toward Wolf's incompatible joints.
     [DefaultExecutionOrder(10000)]
-    internal sealed class DeguRigDriver : MonoBehaviour
+    public sealed class DeguRigDriver : MonoBehaviour
     {
         [SerializeField] private Transform rendererRoot;
         [SerializeField] private Transform[] originalWolf;
