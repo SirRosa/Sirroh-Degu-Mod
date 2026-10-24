@@ -33,10 +33,37 @@ namespace SirrohDegu
         }
 
         // Diagnostic only: prove whether the original Wolf Animator updates limb joints.
-        private Quaternion[] initialLimbRotations;
+        [SerializeField] private Quaternion[] initialLimbRotations;
         private float debugStart;
         private float maxLimbAngle;
         private bool diagnosticComplete;
+        private bool missingBoneWarning;
+
+        // Configure() is called on the inactive prefab. Its NON-SERIALIZED
+        // fields do not survive Unity Instantiate() into the live animal.
+        // Initialize the runtime clone independently, instead of dereferencing
+        // a null diagnostics array on every frame.
+        private void Awake()
+        {
+            InitializeDiagnosticState();
+        }
+
+        private void InitializeDiagnosticState()
+        {
+            if (initialLimbRotations != null && initialLimbRotations.Length == 4)
+                return;
+            if (originalWolf == null || originalWolf.Length != 34) return;
+            int[] indices = { 15, 19, 22, 26 };
+            foreach (int index in indices)
+                if (originalWolf[index] == null) return;
+            initialLimbRotations = new[] {
+                originalWolf[15].localRotation, originalWolf[19].localRotation,
+                originalWolf[22].localRotation, originalWolf[26].localRotation
+            };
+            debugStart = Time.time;
+            maxLimbAngle = 0f;
+            diagnosticComplete = false;
+        }
 
         private void LateUpdate()
         {
@@ -44,6 +71,11 @@ namespace SirrohDegu
                 originalWolf.Length != 34 || fittedDegu.Length != 34)
                 return;
             if (originalWolf[0] == null || fittedDegu[0] == null) return;
+
+            // A live creature can outlive a transient Wolf visual transform.
+            // Do not throw each frame if a reference disappears.
+            if (initialLimbRotations == null || initialLimbRotations.Length != 4)
+                InitializeDiagnosticState();
 
             // The original pelvis may have slight bobbing / animated offset.
             // Express that delta in renderer space and add it to the fitted
@@ -57,9 +89,22 @@ namespace SirrohDegu
                 if (originalWolf[i] != null && fittedDegu[i] != null)
                     fittedDegu[i].localRotation = originalWolf[i].localRotation;
 
-            if (!diagnosticComplete)
+            if (!diagnosticComplete && initialLimbRotations != null &&
+                initialLimbRotations.Length == 4)
             {
                 int[] limbs={15,19,22,26};
+                for (int i=0; i<4; ++i)
+                    if (originalWolf[limbs[i]] == null)
+                    {
+                        diagnosticComplete = true;
+                        if (!missingBoneWarning)
+                        {
+                            missingBoneWarning = true;
+                            DeguPlugin.Log?.LogWarning(
+                                "Degu gait QA skipped: a Wolf animation bone is missing.");
+                        }
+                        return;
+                    }
                 for (int i=0; i<4; ++i)
                     maxLimbAngle = Mathf.Max(maxLimbAngle,
                         Quaternion.Angle(initialLimbRotations[i],originalWolf[limbs[i]].localRotation));
