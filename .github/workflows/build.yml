@@ -47,6 +47,8 @@ jobs:
           done
       - name: Compile BepInEx plugin net48
         run: dotnet build SirrohDegu.csproj -c Release --nologo -v minimal
+      - name: Install icon rendering library
+        run: python3 -m pip install --quiet Pillow
       - name: Package and run static validation
         shell: bash
         run: |
@@ -57,15 +59,25 @@ jobs:
           cp manifest.json release/SirrohDegu/manifest.json
           cp README.md release/SirrohDegu/README.md
           python3 tools/verify_build.py release/SirrohDegu/SirrohDegu.dll
-          (cd release && zip -qr SirrohDegu-0.1.0.zip SirrohDegu)
+          VERSION=$(python3 -c 'import json; print(json.load(open("manifest.json"))["version_number"])')
+          (cd release && zip -qr "SirrohDegu-${VERSION}.zip" SirrohDegu)
+          python3 tools/package_thunderstore.py \
+            --dll release/SirrohDegu/SirrohDegu.dll \
+            --manifest manifest.json --readme README.md \
+            --icon release/SirrohDegu/icon.png \
+            --out "release/SirRosa-SirrohDegu-${VERSION}.zip"
+          unzip -Z1 "release/SirRosa-SirrohDegu-${VERSION}.zip"
       - name: Commit tested release DLL and ZIP
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f release/SirrohDegu-0.1.0.zip release/SirrohDegu/SirrohDegu.dll release/SirrohDegu/manifest.json release/SirrohDegu/README.md
+          VERSION=$(python3 -c 'import json; print(json.load(open("manifest.json"))["version_number"])')
+          git add -f "release/SirrohDegu-${VERSION}.zip" "release/SirRosa-SirrohDegu-${VERSION}.zip" \
+            release/SirrohDegu/SirrohDegu.dll release/SirrohDegu/manifest.json \
+            release/SirrohDegu/README.md release/SirrohDegu/icon.png
           if ! git diff --cached --quiet; then
-            git commit -m "Release Sirroh Degu 0.1.0 tested BepInEx DLL"
+            git commit -m "Release tested Sirroh Degu Thunderstore ZIP v${VERSION}"
             git push origin HEAD:main
           fi

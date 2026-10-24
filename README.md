@@ -12,7 +12,9 @@ spawn Degu
 
 ## Instalacja
 
-Pobierz `release/SirrohDegu-0.1.0.zip` i skopiuj znajdującą się w nim DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
+**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.1.0.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
+
+**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.1.0.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
 
 Model pochodzi z `Degu.blend` i zawiera wagi dla 34 kości kompatybilnych nazwami z oryginalnym wilkiem. Żaden skrypt odpowiedzialny za zachowanie wilka nie jest zastępowany.
 
@@ -27,4 +29,4 @@ Model pochodzi z `Degu.blend` i zawiera wagi dla 34 kości kompatybilnych nazwam
 
 GitHub Actions używa dedykowanego serwera Valheim do pobrania aktualnych bibliotek gry, BepInEx do kompilacji `net48`, oraz `Assets/Degu.part1.b64`–`Assets/Degu.part3.b64` z osadzoną geometrią i wagami. Wynikiem jest jedna DLL `SirrohDegu.dll`. Asset `Degu.meshbin` jest zaszyty w DLL, nie wymaga dodatkowych importerów ani Jotunn.
 
-Po udanym buildzie skompilowana DLL, manifest i paczka ZIP trafiają jako commit do `release/` (bez upload-artifact, żeby uniknąć limitu przechowywania artefaktów).
+Po udanym buildzie skompilowana DLL, manifest i dwie paczki ZIP (w tym pełna paczka Thunderstore) trafiają jako commit do `release/` (bez upload-artifact, aby uniknąć limitu magazynu artefaktów). Każda nowa wersja moda automatycznie otrzymuje ZIP Thunderstore zgodny z `manifest.json`.
