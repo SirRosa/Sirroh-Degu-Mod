@@ -116,26 +116,10 @@ namespace SirrohDegu
                     Mathf.Abs(Vector3.Dot(right, side.normalized)) < .6f)
                     throw new InvalidOperationException("Wolf axis orientation did not validate.");
 
-                // A mesh without animation must touch the same ground plane as
-                // the original Wolf's skinned mesh in its *bind pose*.
-                // This avoids hardcoded pelvis height and incorrect offsets.
+                // Do not treat animated Wolf mesh bounds as the collision
+                // floor: those bounds include tail and animation safety margins.
                 Vector3 pelvisWorld = wolfBones[0].position;
-                float originalMinimum = float.PositiveInfinity;
-                // Built-in game meshes can have isReadable=false. Mesh.bounds
-                // is always accessible, and its eight corners safely provide
-                // the same bind-space ground reference.
-                Bounds bounds = skin.sharedMesh.bounds;
-                for (int xi = -1; xi <= 1; xi += 2)
-                for (int yi = -1; yi <= 1; yi += 2)
-                for (int zi = -1; zi <= 1; zi += 2)
-                {
-                    Vector3 corner = bounds.center + Vector3.Scale(bounds.extents,
-                        new Vector3(xi, yi, zi));
-                    float h = Vector3.Dot(skin.transform.TransformPoint(corner), up);
-                    if (h < originalMinimum) originalMinimum = h;
-                }
-                if (float.IsNaN(originalMinimum) || float.IsInfinity(originalMinimum))
-                    throw new InvalidOperationException("Wolf original mesh has no ground reference.");
+                float targetFloorWorldY = cloneRoot.transform.position.y + 0.025f;
 
                 Vector3 MapDegu(Vector3 point)
                 {
@@ -149,7 +133,7 @@ namespace SirrohDegu
                     float h = Vector3.Dot(MapDegu(vertex), up);
                     if (h < deguMinimum) deguMinimum = h;
                 }
-                float groundCorrection = originalMinimum - deguMinimum;
+                float groundCorrection = targetFloorWorldY - deguMinimum;
                 if (float.IsNaN(groundCorrection) || Mathf.Abs(groundCorrection) > 10f)
                     throw new InvalidOperationException("Degu ground calibration invalid.");
 
@@ -203,10 +187,40 @@ namespace SirrohDegu
                 skin.localBounds = model.bounds;
                 skin.updateWhenOffscreen = true;
 
+                // Record the lowest weighted mesh vertex in each paw's own
+                // bone space. We can clamp actual paw contact each LateUpdate
+                // without costly physics raycasts or CPU skinning.
+                int[] footBones = { 17, 21, 25, 29 };
+                Vector3[] footContacts = new Vector3[4];
+                BoneWeight[] skinWeights = model.boneWeights;
+                Vector3[] fittedVerts = model.vertices;
+                for (int f=0; f<4; f++)
+                {
+                    int chosen = -1;
+                    float minY = float.PositiveInfinity;
+                    for (int v=0; v<fittedVerts.Length; v++)
+                    {
+                        BoneWeight w = skinWeights[v];
+                        int boneIndex = footBones[f];
+                        float influence = 0f;
+                        if (w.boneIndex0 == boneIndex) influence += w.weight0;
+                        if (w.boneIndex1 == boneIndex) influence += w.weight1;
+                        if (w.boneIndex2 == boneIndex) influence += w.weight2;
+                        if (w.boneIndex3 == boneIndex) influence += w.weight3;
+                        if (influence < .2f) continue;
+                        Vector3 world = skin.transform.TransformPoint(fittedVerts[v]);
+                        if (world.y < minY) { minY = world.y; chosen = v; }
+                    }
+                    if (chosen < 0) throw new InvalidOperationException(
+                        "Degu has no contact vertices for " + Names[footBones[f]]);
+                    footContacts[f] = fitted[footBones[f]].InverseTransformPoint(
+                        skin.transform.TransformPoint(fittedVerts[chosen]));
+                }
                 var driver = cloneRoot.AddComponent<DeguRigDriver>();
-                driver.Configure(skin.transform, drivenWolf, fitted);
-                InstanceLog("Degu fitted rig v0.1.4: vertices=" + model.vertexCount +
-                    ", 34 animated joints, real Wolf ground alignment, original Wolf textures, corrected outward surfaces.");
+                driver.Configure(skin.transform, drivenWolf, fitted,
+                    cloneRoot.transform, footContacts);
+                InstanceLog("Degu fitted rig v0.1.6: vertices=" + model.vertexCount +
+                    ", 34 joints, grounded actor origin and four paw contacts, original Wolf materials.");
             }
             catch
             {
