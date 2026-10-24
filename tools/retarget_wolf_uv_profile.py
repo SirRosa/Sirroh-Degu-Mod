@@ -166,7 +166,13 @@ def main():
 
     # In the original screenshot all coat UVs must remain in the red silhouette.
     xy=np.stack((new_uv[:,0]*256-.5, (1-new_uv[:,1])*256-.5),axis=1)
-    away=[i for i in range(n) if ids[i] not in (21,22,23) and
+    # Ear interiors and sole pads deliberately occupy their own islands
+    # OUTSIDE the red coat silhouette (yellow and cyan user annotations).
+    # Only the ordinary furry coat must remain inside the red outline.
+    special=np.isin(ids,[21,22,23])
+    special |= (ids==15)&(points[:,1]>.365)&(normals[:,2]>.17)
+    special |= np.isin(ids,[2,19])&(points[:,1]<.075)&(normals[:,1]<-.10)
+    away=[i for i in range(n) if not special[i] and
           not np.asarray(mask)[int(clamp(round(xy[i,1]),0,255)),
                                int(clamp(round(xy[i,0]),0,255))]]
     assert not away, ("Coat UV outside user-defined Wolf silhouette",len(away))
