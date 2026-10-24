@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BepInEx;
+using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
 
@@ -10,11 +11,13 @@ namespace SirrohDegu
     public sealed class DeguPlugin : BaseUnityPlugin
     {
         internal static DeguPlugin Instance;
+        internal static ManualLogSource Log;
         private Harmony _patches;
 
         private void Awake()
         {
             Instance = this;
+            Log = Logger;
             _patches = new Harmony("sirroh.valheim.degu");
             _patches.PatchAll(typeof(DeguPlugin).Assembly);
             Logger.LogInfo("Sirroh Degu loaded; prefab will register when ZNetScene starts.");
@@ -23,7 +26,7 @@ namespace SirrohDegu
         private void OnDestroy()
         {
             if (_patches != null) _patches.UnpatchSelf();
-            if (Instance == this) Instance = null;
+            if (Instance == this) { Instance = null; Log = null; }
         }
 
         [HarmonyPatch(typeof(ZNetScene), "Awake")]
@@ -33,7 +36,7 @@ namespace SirrohDegu
             private static void Prefix(ZNetScene __instance)
             {
                 try { Register(__instance); }
-                catch (Exception ex) { Instance?.Logger.LogError("Degu prefab registration failed: " + ex); }
+                catch (Exception ex) { Log.LogError("Degu prefab registration failed: " + ex); }
             }
         }
 
