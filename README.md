@@ -25,6 +25,6 @@ Model pochodzi z `Degu.blend` i zawiera wagi dla 34 kości kompatybilnych nazwam
 
 ## Build
 
-GitHub Actions używa dedykowanego serwera Valheim do pobrania aktualnych bibliotek gry, BepInEx do kompilacji `net48`, oraz `Assets/Degu.meshbin.xz.b85` z osadzoną geometrią i wagami. Wynikiem jest jedna DLL `SirrohDegu.dll`. Asset `Degu.meshbin` jest zaszyty w DLL, nie wymaga dodatkowych importerów ani Jotunn.
+GitHub Actions używa dedykowanego serwera Valheim do pobrania aktualnych bibliotek gry, BepInEx do kompilacji `net48`, oraz `Assets/Degu.part1.b64`–`Assets/Degu.part3.b64` z osadzoną geometrią i wagami. Wynikiem jest jedna DLL `SirrohDegu.dll`. Asset `Degu.meshbin` jest zaszyty w DLL, nie wymaga dodatkowych importerów ani Jotunn.
 
 Po udanym buildzie skompilowana DLL, manifest i paczka ZIP trafiają jako commit do `release/` (bez upload-artifact, żeby uniknąć limitu przechowywania artefaktów).
