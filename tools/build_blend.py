@@ -157,7 +157,7 @@ def main():
     rig['animation_source']='Valheim vanilla Wolf rig; game controls an independent fitted Degu skeleton'
     rig.show_in_front=True
     arm.display_type='STICK'
-    output=ROOT/'release'/'Degu_Wolf_Reweighted_v0.1.6.blend'
+    output=ROOT/'release'/'Degu_Wolf_Reweighted_v0.1.7.blend'
     output.parent.mkdir(parents=True,exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=str(output),check_existing=False)
     report={'status':'PASS','blender':'NATIVE Blender save + evaluated modifier pose tests',

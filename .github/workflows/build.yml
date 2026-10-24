@@ -38,6 +38,15 @@ jobs:
           test -s Assets/Reference/Wolf_Original_Albedo.png
           python3 -m pip install --quiet Pillow
           python3 tools/retarget_wolf_uv_profile.py --atlas Assets/Reference/Wolf_Original_Albedo.png
+          python3 - <<'PY'
+          import json
+          data=json.load(open('release/Degu_Wolf_UV_QA.json'))
+          assert data['status']=='PASS'
+          assert data['inner_ear_vertices']>0, 'no inner ear pixels'
+          assert data['paw_sole_vertices']>0, 'no paw pads'
+          assert data['coat_points_outside_user_outline']==0
+          print('PASS user eye / inner-ear / paw-pad UV mapping')
+          PY
           test -s release/Degu_Wolf_UV_QA.json
           test -s release/Degu_Wolf_UV_Overlay.png
       - name: Install SteamCMD
@@ -80,7 +89,7 @@ jobs:
           set -euo pipefail
           "$BLENDER_BIN" --background --python-exit-code 2 --python tools/build_blend.py > release/Degu_Blender_Build.log 2>&1 || { tail -n 100 release/Degu_Blender_Build.log; exit 1; }
           grep -q DEGU_BLENDER_QA_PASS release/Degu_Blender_Build.log
-          test -s release/Degu_Wolf_Reweighted_v0.1.6.blend
+          test -s release/Degu_Wolf_Reweighted_v0.1.7.blend
           test -s release/Degu_Blender_QA.json
           tail -n 8 release/Degu_Blender_Build.log
       - name: Install icon rendering library
@@ -113,7 +122,7 @@ jobs:
           git add -f "release/SirrohDegu-${VERSION}.zip" "release/SirRosa-SirrohDegu-${VERSION}.zip" \
             release/SirrohDegu/SirrohDegu.dll release/SirrohDegu/manifest.json \
             release/SirrohDegu/README.md release/SirrohDegu/icon.png \
-            release/Degu_Wolf_Reweighted_v0.1.6.blend release/Degu_Blender_QA.json \
+            release/Degu_Wolf_Reweighted_v0.1.7.blend release/Degu_Blender_QA.json \
             release/Degu_Skinning_QA.json release/Degu_Blender_Build.log \
             release/Degu_Wolf_UV_QA.json release/Degu_Wolf_UV_Overlay.png
           if ! git diff --cached --quiet; then
