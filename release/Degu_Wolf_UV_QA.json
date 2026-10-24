@@ -28,7 +28,8 @@
     157.9,
     101.0
   ],
-  "inner_ear_vertices": 26,
+  "inner_ear_vertices": 10,
+  "ear_vertices_total": 43,
   "paw_sole_vertices": 52,
   "mirrored_pairs_checked": 331,
   "mirrored_uv_error_max_px": 0.0,
