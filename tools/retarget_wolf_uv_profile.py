@@ -143,7 +143,7 @@ def main():
         normals[b]+=norm
         normals[c]+=norm
     normals/=np.maximum(np.linalg.norm(normals,axis=1)[:,None],1e-9)
-    ear_inner_count=sum(is_inner_ear(int(ids[i]),points[i]) for i in range(n))
+    ear_inner_count=int(sum(bool(is_inner_ear(int(ids[i]),points[i])) for i in range(n)))
     sole_count=int(np.sum(np.isin(ids,[2,19])&(points[:,1]<.075)&(normals[:,1]<-.10)))
     old_uv=np.asarray([struct.unpack_from("<ee",raw,15+i*17) for i in range(n)])
     new_uv=np.zeros((n,2),dtype=float)
