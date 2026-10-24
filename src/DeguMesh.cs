@@ -83,22 +83,22 @@ namespace SirrohDegu
                 if (stream == null) throw new FileNotFoundException("Embedded Degu.meshbin missing.");
                 using (var br = new BinaryReader(stream))
                 {
-                    if (br.ReadByte()!='S' || br.ReadByte()!='D' || br.ReadByte()!='G' || br.ReadByte()!='2')
+                    if (br.ReadByte()!='S' || br.ReadByte()!='D' || br.ReadByte()!='G' || br.ReadByte()!='3')
                         throw new InvalidDataException("Wrong model asset magic.");
                     int vcount=br.ReadUInt16(), icount=br.ReadUInt16(), bones=br.ReadByte();
                     if (vcount < 100 || vcount > 60000 || icount < 300 || icount > 65000 || icount%3!=0 || bones != Names.Length)
                         throw new InvalidDataException("Invalid model sizes.");
                     var vertices=new Vector3[vcount];
-                    var normals=new Vector3[vcount];
-                    var uv=new Vector2[vcount];
+                                        var uv=new Vector2[vcount];
                     var weights=new BoneWeight[vcount];
                     for (int i=0;i<vcount;i++)
                     {
                         vertices[i]=new Vector3(br.ReadInt16()/16384f,br.ReadInt16()/16384f,br.ReadInt16()/16384f);
-                        normals[i]=new Vector3(br.ReadSByte()/127f,br.ReadSByte()/127f,br.ReadSByte()/127f).normalized;
+                        
                         uv[i]=new Vector2(ReadHalf(br.ReadUInt16()),ReadHalf(br.ReadUInt16()));
                         int a=br.ReadByte(),b=br.ReadByte(),c=br.ReadByte(),d=br.ReadByte();
-                        int wa=br.ReadByte(),wb=br.ReadByte(),wc=br.ReadByte(),wd=br.ReadByte();
+                        int wa=br.ReadByte(),wb=br.ReadByte(),wc=br.ReadByte(),wd=255-wa-wb-wc;
+                        if (wd<0 || wd>255) throw new InvalidDataException("Corrupt normalized weights.");
                         if (a>=bones || b>=bones || c>=bones || d>=bones)
                             throw new InvalidDataException("Out-of-range bone index at vertex " + i);
                         int total=wa+wb+wc+wd;
@@ -120,7 +120,7 @@ namespace SirrohDegu
                     if (stream.Position != stream.Length) throw new InvalidDataException("Model has trailing data.");
                     var mesh=new Mesh { name="Degu_Weighted_WolfRig" };
                     mesh.vertices=vertices;
-                    mesh.normals=normals;
+                    mesh.RecalculateNormals();
                     mesh.uv=uv;
                     mesh.triangles=triangles;
                     mesh.boneWeights=weights;
