@@ -75,14 +75,11 @@ def project(label,p,normal,mask,inside):
     # the same ear set contains INNER and OUTER ear surfaces, and the
     # same paw Face Set contains upper fur and underside pads.
     nx,ny,nz=normal
-    if is_inner_ear(label,p):
-        cx,cy=INNER_EAR
-        return ((cx+clamp((abs(x)-.10)*70.,-2.5,2.5)+.5)/256.,
-                1.-(cy+clamp((y-.40)*75.,-3.,3.)+.5)/256.)
-    if label in (2,19) and y<.075 and ny<-.10:
-        cx,cy=PAW_PAD
-        return ((cx+clamp(abs(x)*18.,-3.2,3.2)+.5)/256.,
-                1.-(cy+clamp((z-.035)*16.,-4.,4.)+.5)/256.)
+    # Intentionally NO per-vertex ear/sole override here. The old method
+    # mixed remote UV atlas islands *within a single triangle*, causing
+    # severely stretched pixels on feet and around ears. Actual ear FaceSets
+    # and face-normal-based sole polygons are isolated later by the seam
+    # splitting stage. Base UVs here remain pure fur.
     # Degu X is side; BOTH SIDES deliberately use the SAME Wolf profile
     # (no 1.25-pixel left/right offsets, no second copy of the atlas).
     px=123.-150.*z
@@ -177,8 +174,8 @@ def main():
     # OUTSIDE the red coat silhouette (yellow and cyan user annotations).
     # Only the ordinary furry coat must remain inside the red outline.
     special=np.isin(ids,[21,22,23])
-    special |= np.asarray([is_inner_ear(int(ids[i]),points[i]) for i in range(n)])
-    special |= np.isin(ids,[2,19])&(points[:,1]<.075)&(normals[:,1]<-.10)
+    # Specialty colors are not selected at the vertex stage anymore.
+    # All ears and paws remain fur until entire FACE regions are split.
     away=[i for i in range(n) if not special[i] and
           not np.asarray(mask)[int(clamp(round(xy[i,1]),0,255)),
                                int(clamp(round(xy[i,0]),0,255))]]
@@ -199,6 +196,8 @@ def main():
       "old_zero_uv_count":int(np.sum(np.all(np.abs(old_uv)<1e-5,axis=1))),
       "new_zero_uv_count":int(np.sum(np.all(np.abs(new_uv)<1e-5,axis=1))),
       "source_atlas_sampled_alpha_min":int(sample[:,3].min()),
+      "stage":"base Wolf fur UV only; specialty nose/ear/sole regions applied by face island stage",
+      "in_face_specialty_uv_interpolation":False,
       "material":"Original Valheim wolfMat, not modified",
       "skin_positions_indices_preserved":True,
       "notes":"UV approximation follows user outline, NOT extracted original Wolf mesh UV triangles; game verification remains necessary."
