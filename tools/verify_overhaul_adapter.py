@@ -37,3 +37,11 @@ assert 'add.Invoke(loc,new object[]{NameKey' in localize
 assert 'harmony.Patch(setup,postfix:new HarmonyMethod(after));' in localize
 assert localize.index('if (_localizationRegistrationActive) return;') < localize.index('RegisterLocalizationWord();')
 print('PASS Localization.AddWord -> SetupLanguage recursion guarded')
+
+assert 'Put(spawn,"m_requiredNotGlobalKey","");' not in world
+assert 'obj.GetType().GetField(name,' in world
+preview=Path("src/DeguPreviewDiagnostics.cs").read_text()
+assert preview.index('result.bones=bones;') < preview.index('result.sharedMesh=skin.sharedMesh;')
+assert 'BeforeDetail' in preview and 'AfterDetail' in preview
+assert 'zdo.GetLong("sirroh.tresura.owner.v1",0L)' in preview
+print("PASS optional spawn field, Degu-only preview bindpose order and UI diagnostics")

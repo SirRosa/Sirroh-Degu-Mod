@@ -106,6 +106,11 @@ namespace SirrohDegu
                     AccessTools.Method(typeof(OverhaulCompatibility),nameof(ApplyDeguPrefix))));
                 patches.Patch(previewVisuals, prefix: new HarmonyMethod(
                     AccessTools.Method(typeof(OverhaulCompatibility),nameof(DeguPreviewPrefix))));
+                patches.Patch(RequiredMethod(preview,"CopyRenderers"),
+                    prefix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewDiagnostics),"CopyRenderers")));
+                patches.Patch(RequiredMethod(panel,"UpdateDetail"),
+                    prefix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewDiagnostics),"BeforeDetail")),
+                    postfix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewDiagnostics),"AfterDetail")));
                 Enabled = true;
                 DeguPlugin.Log?.LogInfo("Overhaul v0.22.65 adapter active: 7 coats, 6 eyes, runes and Tresura.");
             }

@@ -103,7 +103,7 @@ namespace SirrohDegu
         }
         private static void Put(object obj, string name, object value)
         {
-            FieldInfo field = AccessTools.Field(obj.GetType(), name);
+            FieldInfo field = obj.GetType().GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (field == null) return;
             if (field.FieldType.IsEnum && value is string text)
                 value = Enum.Parse(field.FieldType, text);
@@ -176,7 +176,6 @@ namespace SirrohDegu
                 Put(spawn,"m_spawnAtNight",true);
                 Put(spawn,"m_huntPlayer",false);
                 Put(spawn,"m_requiredGlobalKey","");
-                Put(spawn,"m_requiredNotGlobalKey","");
                 spawners.Add(spawn);
                 DeguPlugin.Log?.LogInfo("Degu Plains natural spawn registered: group 3-7, max 21, 250s, 35%.");
                 return;
