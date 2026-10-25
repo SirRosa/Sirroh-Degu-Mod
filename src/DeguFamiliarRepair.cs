@@ -217,9 +217,10 @@ namespace SirrohDegu
         }
         private static void AfterCapture(Character animal)
         {
-            if(!animal || !animal.name.StartsWith("Degu",StringComparison.Ordinal) ||
-               !animal.m_nview || !animal.m_nview.IsValid())return;
-            ZDO zdo=animal.m_nview.GetZDO();
+            if(!animal || !animal.name.StartsWith("Degu",StringComparison.Ordinal))return;
+            ZNetView view=animal.GetComponent<ZNetView>();
+            if(!view || !view.IsValid())return;
+            ZDO zdo=view.GetZDO();
             if(zdo==null || !(details.GetValue(null) is IDictionary dict) ||
                !dict.Contains(zdo.m_uid))return;
             object info=dict[zdo.m_uid];
