@@ -90,8 +90,8 @@ def main():
     if not 40<=len(sole_faces)<=70:
         raise ValueError("Degu underside face count out of expected range: "+
                          str(len(sole_faces)))
-    left_count=sum(centers[fi,0]<0 for fi in sole_faces)
-    right_count=sum(centers[fi,0]>0 for fi in sole_faces)
+    left_count=int(sum(bool(centers[fi,0]<0) for fi in sole_faces))
+    right_count=int(sum(bool(centers[fi,0]>0) for fi in sole_faces))
     if left_count!=right_count:
         raise ValueError("Degu left/right sole face asymmetry: "+
                          str((left_count,right_count)))
