@@ -14,18 +14,29 @@ namespace SirrohDegu
         [SerializeField] private Transform[] fittedDegu;
         [SerializeField] private Vector3 originalRootAtBind;
         [SerializeField] private Vector3 fittedRootAtBind;
+        [SerializeField] private Transform originalVisualRoot;
+        [SerializeField] private Transform actorRoot;
+        [SerializeField] private Vector3 sourceVisualScaleAtBind;
+        [SerializeField] private Vector3 stableVisualScaleAtBind;
+        private bool warnedOriginalScale;
+        private bool warnedExtremeRootMotion;
 
         internal void Configure(Transform renderer, Transform[] original,
-            Transform[] fitted)
+            Transform[] fitted, Transform sourceRenderer, Transform creatureRoot)
         {
             if (renderer == null || original == null || fitted == null ||
-                original.Length != 34 || fitted.Length != 34)
+                original.Length != 34 || fitted.Length != 34 ||
+                sourceRenderer == null || creatureRoot == null)
                 throw new ArgumentException("Degu needs 34 original and fitted bones.");
             rendererRoot = renderer;
             originalWolf = original;
             fittedDegu = fitted;
             originalRootAtBind = renderer.InverseTransformPoint(original[0].position);
             fittedRootAtBind = fitted[0].localPosition;
+            originalVisualRoot = sourceRenderer;
+            actorRoot = creatureRoot;
+            sourceVisualScaleAtBind = sourceRenderer.localScale;
+            stableVisualScaleAtBind = renderer.localScale;
             initialLimbRotations = new[] {
                 original[15].localRotation, original[19].localRotation,
                 original[22].localRotation, original[26].localRotation
@@ -78,12 +89,42 @@ namespace SirrohDegu
             if (initialLimbRotations == null || initialLimbRotations.Length != 4)
                 InitializeDiagnosticState();
 
-            // The original pelvis may have slight bobbing / animated offset.
-            // Express that delta in renderer space and add it to the fitted
-            // rest offset rather than copying its incompatible absolute position.
-            fittedDegu[0].localPosition = fittedRootAtBind +
-                (rendererRoot.InverseTransformPoint(originalWolf[0].position) -
-                 originalRootAtBind);
+            // A sprint animation may contain a Wolf-model root translation
+            // or scale curve that is incompatible with the Degu proportions.
+            // Retain natural pelvis bobbing but NEVER copy a very large
+            // displacement that can pull the entire Degu beneath the floor.
+            Vector3 pelvisDelta = rendererRoot.InverseTransformPoint(
+                originalWolf[0].position) - originalRootAtBind;
+            if (pelvisDelta.sqrMagnitude > .24f * .24f)
+            {
+                if (!warnedExtremeRootMotion)
+                {
+                    warnedExtremeRootMotion = true;
+                    DeguPlugin.Log?.LogWarning(
+                        "Degu sprint diagnostic: source Wolf pelvis offset " +
+                        pelvisDelta.magnitude.ToString("F3") +
+                        "m exceeds safe Degu root translation; limiting to 0.24m.");
+                }
+                pelvisDelta = Vector3.ClampMagnitude(pelvisDelta, .24f);
+            }
+            fittedDegu[0].localPosition = fittedRootAtBind + pelvisDelta;
+
+            // Report an actual sprint-driven source scale anomaly once.
+            // No per-frame logging, bone overrides or extra physics work.
+            if (!warnedOriginalScale && originalVisualRoot != null)
+            {
+                Vector3 now = originalVisualRoot.localScale;
+                Vector3 expected = sourceVisualScaleAtBind;
+                if ((now - expected).sqrMagnitude > .04f)
+                {
+                    warnedOriginalScale = true;
+                    DeguPlugin.Log?.LogWarning(
+                        "Degu sprint diagnostic: vanilla Wolf renderer localScale " +
+                        now + " (at bind " + expected +
+                        "); isolated Degu visual retains its own scale " +
+                        stableVisualScaleAtBind + ".");
+                }
+            }
             fittedDegu[0].rotation = originalWolf[0].rotation;
 
             for (int i=1; i<34; ++i)
