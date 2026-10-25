@@ -92,6 +92,8 @@ jobs:
           for f in assembly_valheim.dll assembly_utils.dll UnityEngine.CoreModule.dll UnityEngine.AnimationModule.dll UnityEngine.dll; do
             cp "$RUNNER_TEMP/valheim/valheim_server_Data/Managed/$f" ".ci-deps/$f"
           done
+      - name: Verify optional Overhaul v0.22.65 compatibility and Plains spawn contracts
+        run: python3 tools/verify_overhaul_adapter.py
       - name: Compile BepInEx plugin net48
         run: dotnet build SirrohDegu.csproj -c Release --nologo -v minimal
       - name: Download Blender for native rig and deformation verification

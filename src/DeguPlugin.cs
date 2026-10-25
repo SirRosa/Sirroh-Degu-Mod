@@ -7,7 +7,8 @@ using UnityEngine;
 
 namespace SirrohDegu
 {
-    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.2.0")]
+    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.2.1")]
+    [BepInDependency("sirro.valheim.pracafizyczna", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class DeguPlugin : BaseUnityPlugin
     {
         internal static DeguPlugin Instance;
@@ -28,11 +29,13 @@ namespace SirrohDegu
             _patches.PatchAll(typeof(DeguPlugin).Assembly);
             DeguWorld.InstallLocalizationHook(_patches);
             DeguWorld.Localize();
-            Logger.LogInfo("Sirroh Degu v0.2.0 loaded. Waiting for ZNetScene prefab registry.");
+            OverhaulCompatibility.Install();
+            Logger.LogInfo("Sirroh Degu v0.2.1 loaded. Waiting for ZNetScene prefab registry.");
         }
 
         private void OnDestroy()
         {
+            OverhaulCompatibility.Shutdown();
             if (_patches != null) _patches.UnpatchSelf();
             if (_prefabHolder != null) UnityEngine.Object.Destroy(_prefabHolder);
             _prefabHolder = null;
@@ -132,6 +135,7 @@ namespace SirrohDegu
             {
                 if (existing != null && existing.name == "Degu")
                 {
+                    OverhaulCompatibility.AfterDeguRegistered(existing);
                     Log?.LogInfo("Degu already exists in ZNetScene.GetPrefab; no duplicate.");
                     return;
                 }
@@ -230,6 +234,7 @@ namespace SirrohDegu
                 throw new InvalidOperationException("ZNetScene.GetPrefab('Degu') failed after registration.");
             }
 
+            OverhaulCompatibility.AfterDeguRegistered(_deguPrefab);
             Log?.LogInfo("Degu REGISTERED + VERIFIED: ZNetScene.GetPrefab('Degu') resolved; " +
                          "prefab activeSelf=" + _deguPrefab.activeSelf +
                          ", activeInHierarchy=" + _deguPrefab.activeInHierarchy +

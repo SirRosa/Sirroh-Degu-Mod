@@ -150,3 +150,16 @@ Uwagi: ostro odcięta różnica koloru na granicy poprawnie rozdzielonych UV jes
 - Wersja Sirroh Overhaul 0.22.66 dodaje rozpoznawanie Degu w systemie FurRandomizer i menu tresury; nie ma duplikowania AssetBundle ani osobnej DLL z mechanikami.
 
 **Testy w grze:** przyłączanie do frakcji Równin, zachowanie neutralne wobec innych potworów, naturalny spawn w grupach i synchronizacja umaszczenia/oczu/run w multiplayer. Sama kompilacja nie zastępuje testu zachowania.
+
+
+## v0.2.1 — opcjonalny adapter Sirroh Overhaul 0.22.65
+
+W jednej DLL `SirrohDegu.dll` umieszczono opcjonalny adapter, który nie modyfikuje repozytorium ani plików Sirroh Overhaul. Adapter aktywuje się wyłącznie po wykryciu dokładnie wersji 0.22.65. Bez Overhaul Degu nadal działa samodzielnie.
+
+- Losuje 1 z 7 oryginalnych wariantów sierści wilka oraz 1 z 6 kolorów oczu na właścicielu ZDO; zapis i sieć zachowują oryginalne klucze Overhaul.
+- Rozszerza wybór umaszczenia i koloru oczu oswojonego Degu w menu Tresury.
+- Obsługuje runy żywiołów od poziomu chowańca 25, włącznie z przełącznikiem, stanem zapisanym i podglądem 3D.
+- Materiały nadpisywane są jedynie na `SirrohDegu_StableVisual`, z odrębnym drugim submeshem dla oczu. Wilki i inne prefabrykaty nie są zmieniane.
+- W przypadku błędu inicjalizacji Harmony adapter jest wyłączany; Degu nadal działa bez kompatybilności.
+
+Kompatybilność runtime, synchronizację host/klient i widoczność materiałów należy sprawdzić w grze. Kompilacja i weryfikatory statyczne nie stanowią takiego testu.
