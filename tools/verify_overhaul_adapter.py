@@ -21,7 +21,7 @@ assert 'PlainsMonsters' in world
 assert 'SetIfPresent(ai, "m_huntPlayer", false)' in world
 assert 'SetIfPresent(ai, "m_attackPlayerObjects", false)' in world
 assert 'if (c != null && !c.IsTamed()) __result = null;' in world
-for property,value in (("m_biome","Plains"),("m_groupSizeMin","3"),("m_groupSizeMax","7"),("m_spawnAtDay","true"),("m_spawnAtNight","true")):
+for property,value in (("m_biome",'"Plains"'),("m_groupSizeMin","3"),("m_groupSizeMax","7"),("m_spawnAtDay","true"),("m_spawnAtNight","true")):
     assert re.search(r'Put\(spawn,"'+property+r'",'+value+r'\)',world),property
 assert 'source != null && source.name == "Degu"' in world
 print("PASS Degu compatibility source contract and Plains faction/spawn configuration")
