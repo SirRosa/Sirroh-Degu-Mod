@@ -5,7 +5,6 @@ using System.Reflection;
 using BepInEx.Bootstrap;
 using HarmonyLib;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace SirrohDegu
 {
@@ -228,12 +227,20 @@ namespace SirrohDegu
             Set(info,"Skin",Mathf.Clamp(zdo.GetInt(SkinKey,0),0,6));
             Set(info,"NameColor",Mathf.Clamp(zdo.GetInt(NameColorKey,1),0,15));
         }
+        // The Degu project intentionally does not reference UnityEngine.UI.dll.
+        // Set this existing Overhaul UI property by reflection instead.
         private static void Interactable(FieldInfo f,bool enabled)
         {
-            if(f?.GetValue(null) is Selectable ui)ui.interactable=enabled;
+            object ui=f?.GetValue(null);
+            PropertyInfo p=ui?.GetType().GetProperty("interactable");
+            if(p!=null && p.CanWrite)p.SetValue(ui,enabled,null);
         }
-        private static bool IsInteractable(FieldInfo f)=>
-            f?.GetValue(null) is Selectable ui && ui.interactable;
+        private static bool IsInteractable(FieldInfo f)
+        {
+            object ui=f?.GetValue(null);
+            PropertyInfo p=ui?.GetType().GetProperty("interactable");
+            return p!=null && p.CanRead && p.GetValue(ui,null) is bool state && state;
+        }
 
         private static void AfterDetail()
         {
