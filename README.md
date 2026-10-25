@@ -114,3 +114,15 @@ Nie zmieniono algorytmu wag ani transferu oryginalnych animacji wilka. QA w Blen
 - Żadnych zmian w AI wilka, systemie animacji, oswajaniu, dźwiękach, kolizji i naturalnym spawnie (wyłącznie `spawn Degu`).
 - Testy CI obejmują ścisłą liczbę trójkątów trzech regionów, zachowanie wag i indeksów, pełny test deformacji w Blenderze i standardową kompilację pakietu Thunderstore.
 - Do oceny działania w Valheim konieczny jest ponowny test gry. Plik źródłowy użytkownika i testowa paczka nie są tym samym co zweryfikowana animacja runtime.
+
+## v0.1.10 — znikanie Degusa podczas biegu
+
+Wersja naprawcza koncentruje się wyłącznie na zachowaniu podczas animacji sprintu/galopu. Geometria, Face Sets, UV, wagi i punkty kości z v0.1.9 pozostają niezmienione.
+
+- Degu używa nowego `SirrohDegu_StableVisual` (`SkinnedMeshRenderer`) osadzonego bezpośrednio pod korzeniem obiektu stworzenia; nie dziedziczy już skali i widoczności obiektu oryginalnego renderera wilka. Oryginalny renderer jest wyłączany dopiero po ukończeniu konfiguracji skórki. Oryginalny Animator i jego 34 kości pozostają aktywne jako jedyne źródło animacji.
+- `Animator.cullingMode = AlwaysAnimate` na sklonowanym stworzeniu utrzymuje animowane kości wilka, mimo wyłączenia źródłowego SkinnedMeshRenderera.
+- Ruch root `Pelvis` jest ograniczony do 0,24 m od bind pose, tylko jeśli oryginalny Animator zgłosi ekstremalne przesunięcie. Typowe animacje idle/chód nie są zmieniane, a obroty pozostałych 33 kości pozostają kopiowane jak wcześniej.
+- Zakres renderowania skinned mesha ma dodatkowy margines, aby gwałtowne wymachy podczas galopu nie powodowały omyłkowego ukrywania mesha.
+- Jednorazowe ostrzeżenia diagnostyczne `Degu sprint diagnostic` zapisują zaobserwowaną zmianę skali oryginalnego wilka lub przesunięcie miednicy. Bez spamu każdą klatkę.
+
+**Weryfikacja:** CI sprawdza kompilację i deformacje w Blenderze; bieg w Valheim należy sprawdzić w grze. Jeśli błąd pozostanie, diagnozę opieramy na zarejestrowanym ostrzeżeniu sprintu, zamiast zmieniać wagi lub kształt modelu.
