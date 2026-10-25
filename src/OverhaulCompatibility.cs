@@ -26,6 +26,7 @@ namespace SirrohDegu
 
         private static Harmony patches;
         private static FieldInfo variantsField, mainField;
+        private static Type inheritedSkinAssignment;
         private static MethodInfo assign, wolfApply, applyProperties, ensureEye, tryApply;
         private static bool warned;
         internal static bool Enabled { get; private set; }
@@ -61,7 +62,7 @@ namespace SirrohDegu
                 Type taming = Required("TamingSkill", assembly);
                 Type panel = Required("FamiliarMenuPanel", assembly);
                 Type preview = Required("FamiliarModelPreview", assembly);
-                Type skin = Required("SkinAssignment", assembly);
+                inheritedSkinAssignment = Required("SkinAssignment", assembly);
                 variantsField = AccessTools.Field(catalog, "Variants");
                 if (variantsField == null) throw new MissingFieldException(catalog.FullName, "Variants");
                 Type variant = Required("Variant", assembly);
@@ -127,8 +128,16 @@ namespace SirrohDegu
         internal static void AfterDeguRegistered(GameObject prefab)
         {
             if (!Enabled || !prefab || prefab.GetComponent<DeguVariantAssignment>()) return;
+            // Wolf was patched by Overhaul before Degu cloned it. Disable ONLY
+            // the inherited coroutine on Degu; otherwise two randomizers race.
+            // Its original Wolf prefab/component is never touched.
+            if (inheritedSkinAssignment != null)
+            {
+                Behaviour duplicate = prefab.GetComponent(inheritedSkinAssignment) as Behaviour;
+                if (duplicate != null) duplicate.enabled = false;
+            }
             prefab.AddComponent<DeguVariantAssignment>();
-            DeguPlugin.Log?.LogInfo("Degu variant assignment registered on actual network prefab.");
+            DeguPlugin.Log?.LogInfo("Degu owns one ZDO-authoritative coat/eye assignment.");
         }
 
         private static bool Degu(string animal) =>
