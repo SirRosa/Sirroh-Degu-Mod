@@ -310,6 +310,36 @@ namespace SirrohDegu
                 int eye=OverhaulCompatibility.EnsureRandomEye(zdo,view.IsOwner());
                 if (eye==0) { yield return Delay; continue; }
                 OverhaulCompatibility.Apply(gameObject,zdo.GetInt(OverhaulCompatibility.SkinKey,0));
+                // Wild Degu get one random appearance, while owned pets must
+                // also react to skin/eye/rune ZDO changes after menu selection.
+                // Check once per second, apply only if appearance changed.
+                int lastSkin=zdo.GetInt(OverhaulCompatibility.SkinKey,0);
+                int lastEye=zdo.GetInt(OverhaulCompatibility.EyeKey,0);
+                int lastElement=zdo.GetInt("sirroh.pet.element.v1",0);
+                int lastLevel=zdo.GetInt("sirroh.pet.level.v1",1);
+                bool lastRunes=zdo.GetBool("sirroh.wolf.showrunes.v1",true);
+                var slow=new WaitForSeconds(1f);
+                while (view && view.IsValid() && gameObject)
+                {
+                    yield return slow;
+                    ZDO current=view.GetZDO();
+                    if(current==null)yield break;
+                    int skin=current.GetInt(OverhaulCompatibility.SkinKey,0);
+                    int nextEye=current.GetInt(OverhaulCompatibility.EyeKey,0);
+                    int element=current.GetInt("sirroh.pet.element.v1",0);
+                    int level=current.GetInt("sirroh.pet.level.v1",1);
+                    bool runes=current.GetBool("sirroh.wolf.showrunes.v1",true);
+                    if(skin!=lastSkin || nextEye!=lastEye || element!=lastElement ||
+                       level!=lastLevel || runes!=lastRunes)
+                    {
+                        OverhaulCompatibility.Apply(gameObject,skin);
+                        lastSkin=skin;
+                        lastEye=nextEye;
+                        lastElement=element;
+                        lastLevel=level;
+                        lastRunes=runes;
+                    }
+                }
                 yield break;
             }
         }

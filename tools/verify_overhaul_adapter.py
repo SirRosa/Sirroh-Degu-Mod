@@ -62,3 +62,21 @@ assert 'Sprite.Create(texture=loaded,new Rect(0f,0f,96f,96f),' in code
 assert 'DeguCompassIcon.Register(_patches);' in plugin
 assert 'DeguCompassIcon.Shutdown();' in plugin
 print("PASS exact user 96x96 icon embedded and wired to Overhaul creature/compass icon pipeline")
+
+# Full companion integration regression: server-owned ZDO, menu buttons, 4 opcodes.
+repair=Path("src/DeguFamiliarRepair.cs").read_text()
+for name in ("ChooseSkin","ChooseEyes","ChooseName","ToggleRunes","ServerRequest","AfterDetail","AfterCapture"):
+    assert "private static " in repair and name+"(" in repair,name
+for cmd in ("SendRequest(info,10,next)","SendRequest(info,18,next)","SendRequest(familiar,11,next)","SendRequest(info,17,previous?0:1)"):
+    assert cmd in repair,cmd
+for key in ("pet.Set(SkinKey,requested)","pet.Set(NameColorKey,requested)","pet.Set(EyeKey,requested)","pet.Set(RunesKey,requested==1)"):
+    assert key in repair,key
+assert "pet.GetLong(OwnerKey,0L)!=userId" in repair
+assert "roster.Contains(target)" in repair
+assert "pet.GetInt(PetLevelKey,1)<25" in repair
+assert "ZDOMan.instance.ForceSendZDO(target)" in repair
+assert "DeguFamiliarRepair.Install();" in plugin
+assert "DeguFamiliarRepair.Shutdown();" in plugin
+assert "new WaitForSeconds(1f)" in bridge
+assert "skin!=lastSkin || nextEye!=lastEye" in bridge
+print("PASS Degu controls/RPC validation, persistence and reactive live appearance")
