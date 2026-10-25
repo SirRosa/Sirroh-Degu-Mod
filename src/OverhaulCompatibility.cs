@@ -156,8 +156,6 @@ namespace SirrohDegu
             IEnumerable<CodeInstruction> instructions, MethodBase original)
         {
             var codes = instructions.ToList();
-            MethodInfo equal = AccessTools.Method(typeof(string),"op_Equality");
-            MethodInfo notEqual = AccessTools.Method(typeof(string),"op_Inequality");
             MethodInfo oursEqual = AccessTools.Method(typeof(OverhaulCompatibility),nameof(WolfOrDeguEquals));
             MethodInfo oursNotEqual = AccessTools.Method(typeof(OverhaulCompatibility),nameof(WolfOrDeguNotEquals));
             int replaced=0;
@@ -167,9 +165,9 @@ namespace SirrohDegu
                 // C# emits ldstr "Wolf"; call string.op_Equality/Inequality.
                 for (int j=i+1;j<=Math.Min(i+2,codes.Count-1);j++)
                 {
-                    if (codes[j].operand is MethodInfo method && method == equal)
+                    if (codes[j].operand is MethodInfo method && method.DeclaringType == typeof(string) && method.Name == "op_Equality")
                     { codes[j].operand=oursEqual; replaced++; break; }
-                    if (codes[j].operand is MethodInfo other && other == notEqual)
+                    if (codes[j].operand is MethodInfo other && other.DeclaringType == typeof(string) && other.Name == "op_Inequality")
                     { codes[j].operand=oursNotEqual; replaced++; break; }
                 }
             }
