@@ -15,6 +15,18 @@ jobs:
         run: |
           test -s release/SirRosa-SirrohDegu-0.2.4.zip
           unzip -t release/SirRosa-SirrohDegu-0.2.4.zip
+      - name: Verify native Blender model
+        shell: bash
+        run: |
+          test -s release/Degu_Wolf_Reweighted_v0.1.11.blend
+          test "$(head -c 7 release/Degu_Wolf_Reweighted_v0.1.11.blend)" = "BLENDER"
+      - name: Deliver editable Blender model
+        uses: actions/upload-artifact@v4
+        with:
+          name: degu-editable-blend-v0111
+          path: release/Degu_Wolf_Reweighted_v0.1.11.blend
+          retention-days: 1
+          if-no-files-found: error
       - name: Make downloaded ZIP available as an artifact
         uses: actions/upload-artifact@v4
         with:
