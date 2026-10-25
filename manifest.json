@@ -1,8 +1,8 @@
 {
   "name": "SirrohDegu",
-  "version_number": "0.1.11",
+  "version_number": "0.2.0",
   "website_url": "https://github.com/SirRosa/Sirroh-Degu-Mod",
-  "description": "Testowe stworzenie Degu: kopia wilka z podmienionym meshem; wyłącznie spawn Degu.",
+  "description": "Koszatniczka (Degu) — pasywne stworzenie na Równinach w grupach 3–7; opcjonalne umaszczenia, oczy i runy przez Sirroh Overhaul 0.22.66+",
   "dependencies": [
     "denikson-BepInExPack_Valheim-5.4.2351"
   ]
