@@ -36,26 +36,49 @@ namespace SirrohDegu
             if (f != null) f.SetValue(obj, value);
         }
 
+        // Native Localization has moved between managed assemblies across
+        // Valheim builds. Resolve by name at runtime, so this DLL does not
+        // require a compile-time reference to a particular localization DLL.
+        private static Type LocateLocalization()
+        {
+            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                Type type=assembly.GetType("Localization",false);
+                if (type != null) return type;
+            }
+            return null;
+        }
         internal static void Localize()
         {
-            Localization loc = Localization.instance;
+            Type type=LocateLocalization();
+            if (type == null) return;
+            object loc=AccessTools.Property(type,"instance")?.GetValue(null,null)
+                    ?? AccessTools.Field(type,"instance")?.GetValue(null);
             if (loc == null) return;
-            string language = null;
-            MethodInfo selected = AccessTools.Method(typeof(Localization), "GetSelectedLanguage");
+            string language="";
+            MethodInfo selected=AccessTools.Method(type,"GetSelectedLanguage");
             if (selected != null)
-                try { language = selected.Invoke(loc, null) as string; }
-                catch (Exception ex) { DeguPlugin.Log?.LogWarning("Degu language lookup: " + ex.Message); }
-            bool polish = string.Equals(language, "Polish", StringComparison.OrdinalIgnoreCase)
-                       || string.Equals(language, "Polski", StringComparison.OrdinalIgnoreCase);
-            loc.AddWord(NameKey, polish ? "Koszatniczka" : "Degu");
+                try { language=Convert.ToString(selected.Invoke(loc,null)); }
+                catch (Exception ex) { DeguPlugin.Log?.LogWarning("Degu language lookup: "+ex.Message); }
+            bool polish=string.Equals(language,"Polish",StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(language,"Polski",StringComparison.OrdinalIgnoreCase);
+            MethodInfo add=AccessTools.Method(type,"AddWord",new[]{typeof(string),typeof(string)});
+            if (add == null)
+            {
+                DeguPlugin.Log?.LogWarning("Degu localization API AddWord unavailable.");
+                return;
+            }
+            add.Invoke(loc,new object[]{NameKey,polish?"Koszatniczka":"Degu"});
         }
 
-        internal static void InstallLocalizationHook(Harmony h)
+        internal static void InstallLocalizationHook(Harmony harmony)
         {
-            MethodInfo setup = AccessTools.Method(typeof(Localization), "SetupLanguage");
-            MethodInfo after = AccessTools.Method(typeof(DeguWorld), nameof(AfterLanguage));
-            if (setup != null && after != null)
-                h.Patch(setup, postfix: new HarmonyMethod(after));
+            Type type=LocateLocalization();
+            if (type == null) return;
+            MethodInfo setup=AccessTools.Method(type,"SetupLanguage");
+            MethodInfo after=AccessTools.Method(typeof(DeguWorld),nameof(AfterLanguage));
+            if (setup!=null && after!=null)
+                harmony.Patch(setup,postfix:new HarmonyMethod(after));
             else
                 DeguPlugin.Log?.LogWarning("Localization.SetupLanguage unavailable; using registration localization.");
         }
