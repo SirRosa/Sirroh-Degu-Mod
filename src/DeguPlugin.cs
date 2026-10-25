@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace SirrohDegu
 {
-    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.1.9")]
+    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.1.10")]
     public sealed class DeguPlugin : BaseUnityPlugin
     {
         internal static DeguPlugin Instance;
@@ -26,7 +26,7 @@ namespace SirrohDegu
 
             _patches = new Harmony("sirroh.valheim.degu");
             _patches.PatchAll(typeof(DeguPlugin).Assembly);
-            Logger.LogInfo("Sirroh Degu v0.1.9 loaded. Waiting for ZNetScene prefab registry.");
+            Logger.LogInfo("Sirroh Degu v0.1.10 loaded. Waiting for ZNetScene prefab registry.");
         }
 
         private void OnDestroy()
@@ -192,9 +192,12 @@ namespace SirrohDegu
                             target = candidate;
                     }
                     if (target == null) throw new InvalidOperationException("Wolf has no skinned mesh renderer.");
-                    DeguMesh.ReplaceMesh(target, clone);
+                    // The Degu renderer is now a NEW stable child of the actor,
+                    // not the original Wolf skinned renderer. Keep ONLY the
+                    // new stable visual, leaving original bones/Animator live.
+                    SkinnedMeshRenderer deguVisual = DeguMesh.ReplaceMesh(target, clone);
                     foreach (var other in clone.GetComponentsInChildren<SkinnedMeshRenderer>(true))
-                        if (other != target) other.enabled = false;
+                        if (other != deguVisual) other.enabled = false;
 
                     var character = clone.GetComponent<Character>();
                     if (character == null) throw new InvalidOperationException("Wolf has no Character component.");
