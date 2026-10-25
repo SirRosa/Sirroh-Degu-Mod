@@ -37,6 +37,8 @@
   "old_zero_uv_count": 359,
   "new_zero_uv_count": 0,
   "source_atlas_sampled_alpha_min": 254,
+  "stage": "base Wolf fur UV only; specialty nose/ear/sole regions applied by face island stage",
+  "in_face_specialty_uv_interpolation": false,
   "material": "Original Valheim wolfMat, not modified",
   "skin_positions_indices_preserved": true,
   "notes": "UV approximation follows user outline, NOT extracted original Wolf mesh UV triangles; game verification remains necessary."

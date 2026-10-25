@@ -2,17 +2,19 @@
   "status": "PASS",
   "source": "User edited Degu_Wolf_Reweighted_v0.1.8.blend; UV correction from reviewed v0.1.9.blend",
   "original_vertices": 1477,
-  "export_vertices": 1509,
+  "export_vertices": 1569,
   "triangles": 2580,
   "annotated_faces": {
     "24": 8,
     "25": 18,
-    "26": 8
+    "26": 8,
+    "27": 52
   },
   "new_vertices_by_faceset": {
     "24": 9,
     "25": 14,
-    "26": 9
+    "26": 9,
+    "27": 60
   },
   "original_weights_preserved": true,
   "original_triangle_order_preserved": true,
@@ -20,6 +22,13 @@
     24,
     26
   ],
+  "sole_region": 27,
+  "sole_faces_left": 26,
+  "sole_faces_right": 26,
+  "sole_faces_total": 52,
+  "no_mixed_wolf_uv_patches_per_triangle": true,
+  "region_selection": "face-wide islands; no blending between distant atlas coordinates within triangles",
   "nose_region": 25,
-  "other_texture_regions_unchanged": true
+  "other_texture_regions_unchanged": true,
+  "original_normal_and_triangle_count_preserved": true
 }
