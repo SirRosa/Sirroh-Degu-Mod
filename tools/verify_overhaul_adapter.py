@@ -25,3 +25,15 @@ for property,value in (("m_biome",'"Plains"'),("m_groupSizeMin","3"),("m_groupSi
     assert re.search(r'Put\(spawn,"'+property+r'",'+value+r'\)',world),property
 assert 'source != null && source.name == "Degu"' in world
 print("PASS Degu compatibility source contract and Plains faction/spawn configuration")
+
+# Regression for Valheim 1.0: Localization.AddWord calls SetupLanguage;
+# the SetupLanguage postfix must NOT call AddWord recursively.
+localize=world[world.index("internal static void Localize()"):world.index("private static object Field(")]
+assert 'if (_localizationRegistrationActive) return;' in localize
+assert '_localizationRegistrationActive=true;' in localize
+assert 'try { RegisterLocalizationWord(); }' in localize
+assert 'finally { _localizationRegistrationActive=false; }' in localize
+assert 'add.Invoke(loc,new object[]{NameKey' in localize
+assert 'harmony.Patch(setup,postfix:new HarmonyMethod(after));' in localize
+assert localize.index('if (_localizationRegistrationActive) return;') < localize.index('RegisterLocalizationWord();')
+print('PASS Localization.AddWord -> SetupLanguage recursion guarded')

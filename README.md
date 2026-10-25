@@ -12,9 +12,9 @@ spawn Degu
 
 ## Instalacja
 
-**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.2.1.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
+**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.2.2.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
 
-**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.2.1.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
+**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.2.2.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
 
 Model pochodzi z `Degu.blend` i zawiera wagi dla 34 kości kompatybilnych nazwami z oryginalnym wilkiem. Żaden skrypt odpowiedzialny za zachowanie wilka nie jest zastępowany.
 
@@ -163,3 +163,8 @@ W jednej DLL `SirrohDegu.dll` umieszczono opcjonalny adapter, który nie modyfik
 - W przypadku błędu inicjalizacji Harmony adapter jest wyłączany; Degu nadal działa bez kompatybilności.
 
 Kompatybilność runtime, synchronizację host/klient i widoczność materiałów należy sprawdzić w grze. Kompilacja i weryfikatory statyczne nie stanowią takiego testu.
+
+
+## v0.2.2 — poprawka zapętlenia lokalizacji podczas uruchamiania
+
+Usunięto nieskończoną rekurencję wywołań `Localization.AddWord` → `Localization.SetupLanguage` → `DeguWorld.Localize`. Zabezpieczenie wejścia jest zdejmowane w bloku `finally`, również po błędzie rejestracji. Wersja Overhaul 0.22.65 pozostaje niezmieniona.

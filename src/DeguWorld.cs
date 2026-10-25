@@ -48,7 +48,20 @@ namespace SirrohDegu
             }
             return null;
         }
+        // Localization.AddWord invokes Localization.SetupLanguage in Valheim 1.0.
+        // Our SetupLanguage postfix therefore re-enters Localize synchronously.
+        // The gate MUST be raised before AddWord and reset even on exceptions,
+        // otherwise one Degu word reloads all game localization files forever.
+        private static bool _localizationRegistrationActive;
         internal static void Localize()
+        {
+            if (_localizationRegistrationActive) return;
+            _localizationRegistrationActive=true;
+            try { RegisterLocalizationWord(); }
+            finally { _localizationRegistrationActive=false; }
+        }
+
+        private static void RegisterLocalizationWord()
         {
             Type type=LocateLocalization();
             if (type == null) return;
