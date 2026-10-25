@@ -233,9 +233,11 @@ namespace SirrohDegu
         private static void CopyEyeSubmesh(SkinnedMeshRenderer renderer)
         {
             if (!renderer || renderer.sharedMaterials==null || renderer.sharedMaterials.Length<2) return;
+            // WolfVisuals writes eye-specific albedo, colored emission and
+            // elemental mask to submesh 0. Degu eyes use submesh 1: copy the
+            // complete property block instead of overriding just brightness.
             var block=new MaterialPropertyBlock();
             renderer.GetPropertyBlock(block,0);
-            block.SetColor("_EmissionColor",Color.white*.18f);
             renderer.SetPropertyBlock(block,1);
         }
 
