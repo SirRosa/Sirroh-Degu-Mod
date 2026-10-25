@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace SirrohDegu
 {
-    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.1.11")]
+    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.2.0")]
     public sealed class DeguPlugin : BaseUnityPlugin
     {
         internal static DeguPlugin Instance;
@@ -26,7 +26,9 @@ namespace SirrohDegu
 
             _patches = new Harmony("sirroh.valheim.degu");
             _patches.PatchAll(typeof(DeguPlugin).Assembly);
-            Logger.LogInfo("Sirroh Degu v0.1.10 loaded. Waiting for ZNetScene prefab registry.");
+            DeguWorld.InstallLocalizationHook(_patches);
+            DeguWorld.Localize();
+            Logger.LogInfo("Sirroh Degu v0.2.0 loaded. Waiting for ZNetScene prefab registry.");
         }
 
         private void OnDestroy()
@@ -203,9 +205,10 @@ namespace SirrohDegu
                     if (character == null) throw new InvalidOperationException("Wolf has no Character component.");
                     if (clone.GetComponent<ZNetView>() == null)
                         throw new InvalidOperationException("Wolf has no ZNetView component.");
-                    character.m_name = "Degu";
-                    // The cloned Wolf retains AI, taming, combat, sounds, animations,
-                    // drops and physics. No new SpawnSystem entries are created.
+                    DeguWorld.Configure(clone);
+                    DeguWorld.Localize();
+                    // Original Wolf motion/feeding/taming remain; wild targeting
+                    // and spawn behavior are intentionally configured separately.
                     _deguPrefab = clone;
                 }
                 catch
