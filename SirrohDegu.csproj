@@ -20,5 +20,6 @@
     <Reference Include="BepInEx"><HintPath>$(ReferenceDir)/BepInEx.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="0Harmony"><HintPath>$(ReferenceDir)/0Harmony.dll</HintPath><Private>false</Private></Reference>
     <EmbeddedResource Include="Assets/Degu.meshbin" LogicalName="SirrohDegu.Model" />
+    <EmbeddedResource Include="Assets/Icons/Degu.png" LogicalName="SirrohDegu.Creatures.Degu.png" />
   </ItemGroup>
 </Project>

@@ -45,3 +45,20 @@ assert preview.index('result.bones=bones;') < preview.index('result.sharedMesh=s
 assert 'BeforeDetail' in preview and 'AfterDetail' in preview
 assert 'zdo.GetLong("sirroh.tresura.owner.v1",0L)' in preview
 print("PASS optional spawn field, Degu-only preview bindpose order and UI diagnostics")
+
+# User-provided lossless RGBA 96x96 creature icon packaged into the single DLL.
+import hashlib, struct
+icon=Path("Assets/Icons/Degu.png").read_bytes()
+assert icon[:8] == bytes.fromhex("89504e470d0a1a0a")
+assert struct.unpack_from(">II",icon,16)==(96,96)
+assert hashlib.sha256(icon).hexdigest()=="925240b90df35a969b1adebf666a7d7875aa4d502f2ce027cd27095d65613a03"
+proj=Path("SirrohDegu.csproj").read_text()
+assert '<EmbeddedResource Include="Assets/Icons/Degu.png" LogicalName="SirrohDegu.Creatures.Degu.png" />' in proj
+code=Path("src/DeguCompassIcon.cs").read_text()
+assert 'CreatureIconLibrary' in code and '"ForPrefab"' in code
+assert 'nameof(AfterPrefabIcon)' in code
+assert 'GetManifestResourceStream(ResourceName)' in code
+assert 'Sprite.Create(texture,new Rect(0f,0f,96f,96f),' in code
+assert 'DeguCompassIcon.Register(_patches);' in plugin
+assert 'DeguCompassIcon.Shutdown();' in plugin
+print("PASS exact user 96x96 icon embedded and wired to Overhaul creature/compass icon pipeline")
