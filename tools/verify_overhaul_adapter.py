@@ -58,7 +58,7 @@ code=Path("src/DeguCompassIcon.cs").read_text()
 assert 'CreatureIconLibrary' in code and '"ForPrefab"' in code
 assert 'nameof(AfterPrefabIcon)' in code
 assert 'GetManifestResourceStream(ResourceName)' in code
-assert 'Sprite.Create(texture,new Rect(0f,0f,96f,96f),' in code
+assert 'Sprite.Create(texture=loaded,new Rect(0f,0f,96f,96f),' in code
 assert 'DeguCompassIcon.Register(_patches);' in plugin
 assert 'DeguCompassIcon.Shutdown();' in plugin
 print("PASS exact user 96x96 icon embedded and wired to Overhaul creature/compass icon pipeline")
