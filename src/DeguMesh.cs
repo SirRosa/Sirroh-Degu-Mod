@@ -67,9 +67,9 @@ namespace SirrohDegu
         private const float VisualScale = 1.30f;
         private static readonly Vector3 DeguPelvis = new Vector3(0f, .19f, -.295f);
 
-        internal static void ReplaceMesh(SkinnedMeshRenderer skin, GameObject cloneRoot)
+        internal static SkinnedMeshRenderer ReplaceMesh(SkinnedMeshRenderer originalSkin, GameObject cloneRoot)
         {
-            if (cloneRoot == null || skin == null || skin.sharedMesh == null)
+            if (cloneRoot == null || originalSkin == null || originalSkin.sharedMesh == null)
                 throw new InvalidOperationException("Wolf has no valid skinned renderer.");
             if (Names.Length != 34 || Parent.Length != Names.Length || DeguJoints.Length != Names.Length)
                 throw new InvalidOperationException("Degu skeleton reference arrays inconsistent.");
@@ -89,8 +89,31 @@ namespace SirrohDegu
             }
 
             Mesh model = Load();
+            GameObject stableVisual = null;
             try
             {
+                // Isolate the skinned Degu mesh from Wolf's Animator-driven
+                // mesh transform. That transform can have sprint-specific
+                // scale/visibility curves; the Degu must inherit only bone
+                // rotations from the original Wolf, not mesh object scaling.
+                stableVisual = new GameObject("SirrohDegu_StableVisual");
+                Transform visualTransform = stableVisual.transform;
+                visualTransform.SetParent(cloneRoot.transform, false);
+                visualTransform.position = originalSkin.transform.position;
+                visualTransform.rotation = originalSkin.transform.rotation;
+                Vector3 parentScale = cloneRoot.transform.lossyScale;
+                Vector3 sourceScale = originalSkin.transform.lossyScale;
+                visualTransform.localScale = new Vector3(
+                    sourceScale.x / Mathf.Max(0.00001f, Mathf.Abs(parentScale.x)),
+                    sourceScale.y / Mathf.Max(0.00001f, Mathf.Abs(parentScale.y)),
+                    sourceScale.z / Mathf.Max(0.00001f, Mathf.Abs(parentScale.z)));
+                SkinnedMeshRenderer skin =
+                    stableVisual.AddComponent<SkinnedMeshRenderer>();
+                skin.sharedMaterials = originalSkin.sharedMaterials;
+                skin.shadowCastingMode = originalSkin.shadowCastingMode;
+                skin.receiveShadows = originalSkin.receiveShadows;
+                skin.quality = originalSkin.quality;
+
                 // Get the UP vector from Wolf's actual feet-to-thigh axis.
                 // The previous Cross(left, forward) could point DOWN, turning
                 // the body over and placing the feet above the ground.
@@ -242,18 +265,29 @@ namespace SirrohDegu
                 // v0.1.8 raised animated PAW BONES to the prefab origin,
                 // retracting the legs into the torso. Never override limbs.
                 var driver = cloneRoot.AddComponent<DeguRigDriver>();
-                driver.Configure(skin.transform, drivenWolf, fitted);
+                driver.Configure(skin.transform, drivenWolf, fitted,
+                    originalSkin.transform, cloneRoot.transform);
                 var eyeGlow = cloneRoot.AddComponent<DeguEyeEmission>();
                 eyeGlow.Configure(skin);
                 InstanceLog("Degu shader QA: original " + originalWolfMaterial.name +
                     ", eye triangles doubled=" + eyeIndices.Count/3 +
                     ", pitch correction disabled.");
-                InstanceLog("Degu fitted rig v0.1.8: vertices=" + model.vertexCount +
-                    ", 34 joints, grounded using paw vertices without leg repositioning, original Wolf materials.");
+                // Suppress original Wolf only AFTER setting up new renderer.
+                // The Animator, AI and source Wolf bones remain active.
+                originalSkin.enabled = false;
+                Animator wolfAnimator = cloneRoot.GetComponentInChildren<Animator>(true);
+                if (wolfAnimator != null)
+                    wolfAnimator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+                InstanceLog("Degu visual v0.1.10: stable renderer=" +
+                    skin.gameObject.name + ", animator source=" +
+                    originalSkin.transform.name + ", 34 bones, vertices=" +
+                    model.vertexCount + ". Vanilla Wolf movement untouched.");
+                return skin;
             }
             catch
             {
                 UnityEngine.Object.Destroy(model);
+                if (stableVisual != null) UnityEngine.Object.Destroy(stableVisual);
                 throw;
             }
         }
