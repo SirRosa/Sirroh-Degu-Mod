@@ -1,0 +1,24 @@
+name: One-time Degu 0.2.4 Chat ZIP Delivery
+on:
+  push:
+    branches: [chat-delivery-degu-024]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact release archive
+        shell: bash
+        run: |
+          test -s release/SirRosa-SirrohDegu-0.2.4.zip
+          unzip -t release/SirRosa-SirrohDegu-0.2.4.zip
+      - name: Make downloaded ZIP available as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: degu024-chat-download
+          path: release/SirRosa-SirrohDegu-0.2.4.zip
+          retention-days: 1
+          if-no-files-found: error
