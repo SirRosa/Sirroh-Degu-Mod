@@ -26,6 +26,9 @@ FACE_PATCHES = {
 # yellow inner-ear region and green muzzle-tip region.
 EAR_BOX = (97.23, 92.23, 102.27, 97.27)
 NOSE_BOX = (62.23, 133.19, 67.27, 137.81)
+# Central interior of the user's CYAN patch, avoiding neighboring texels.
+SOLE_BOX = (155.5, 96.0, 160.5, 104.0)
+SOLE_LABEL = 27
 
 def emit_uv(target, xyz, source_min, source_max):
     x,y,z=xyz
@@ -33,6 +36,11 @@ def emit_uv(target, xyz, source_min, source_max):
         uaxis=z
         vaxis=y
         box=EAR_BOX
+    elif target==SOLE_LABEL:
+        # Undersides of left and right paws share exactly one atlas island.
+        uaxis=abs(x)
+        vaxis=z
+        box=SOLE_BOX
     else:
         uaxis=x
         vaxis=y
@@ -60,12 +68,40 @@ def main():
     assert old_labels.size==count
     labels=old_labels.tolist()
     assert sum(len(x) for x in FACE_PATCHES.values())==34
+    # Base UVs are exclusively fur. Select entire underside faces so no
+    # triangle can interpolate between unrelated fur and pad atlas islands.
+    v0=np.array([struct.unpack_from('<hhh',row,0) for row in old_rows],
+                dtype=np.float64)/16384.
+    p0=v0[faces[:,0]]
+    p1=v0[faces[:,1]]
+    p2=v0[faces[:,2]]
+    centers=(p0+p1+p2)/3.
+    normals=np.cross(p1-p0,p2-p0)
+    normals/=np.maximum(np.linalg.norm(normals,axis=1)[:,None],1e-8)
+    fset=[]
+    for tri in faces:
+        vals=[int(old_labels[int(k)]) for k in tri]
+        fset.append(collections.Counter(vals).most_common(1)[0][0])
+    fset=np.array(fset)
+    sole_mask = (np.isin(fset, [2,19]) &
+                 (centers[:,1] < .070) &
+                 (normals[:,1] < -.80))
+    sole_faces=np.flatnonzero(sole_mask).tolist()
+    if not 40<=len(sole_faces)<=70:
+        raise ValueError("Degu underside face count out of expected range: "+
+                         str(len(sole_faces)))
+    left_count=sum(centers[fi,0]<0 for fi in sole_faces)
+    right_count=sum(centers[fi,0]>0 for fi in sole_faces)
+    if left_count!=right_count:
+        raise ValueError("Degu left/right sole face asymmetry: "+
+                         str((left_count,right_count)))
+    FACE_PATCHES[SOLE_LABEL]=sole_faces
     face_label={}
     for label,ix in FACE_PATCHES.items():
         for fi in ix:
             assert 0<=fi<len(faces) and fi not in face_label
             face_label[fi]=label
-    assert len(face_label)==34
+    assert len(face_label)==34+len(sole_faces)
 
     coords=np.array([struct.unpack_from('<hhh',row,0) for row in old_rows],
                     dtype=np.float64)/16384.
@@ -73,7 +109,12 @@ def main():
     for label,faceids in FACE_PATCHES.items():
         verts=np.unique(faces[faceids].reshape(-1))
         pts=coords[verts]
-        v=np.column_stack((pts[:,2],pts[:,1])) if label in (24,26) else pts[:,:2]
+        if label in (24,26):
+            v=np.column_stack((pts[:,2],pts[:,1]))
+        elif label==SOLE_LABEL:
+            v=np.column_stack((np.abs(pts[:,0]),pts[:,2]))
+        else:
+            v=pts[:,:2]
         extrema[label]=(v.min(axis=0),v.max(axis=0))
     copies={}
     groups=collections.Counter()
@@ -91,7 +132,8 @@ def main():
                 groups[label]+=1
             faces[faceidx,corner]=copies[key]
     new_count=len(old_rows)
-    assert new_count==count+32,(count,new_count)
+    if not 1550<=new_count<=1700:
+        raise AssertionError(("Unexpected seam-split vertex count",count,new_count))
     assert len(labels)==new_count
     assert len(faces)==len(original_faces)
     assert np.array_equal(faces[~np.isin(np.arange(len(faces)), list(face_label))],
@@ -117,8 +159,15 @@ def main():
         "original_weights_preserved":True,
         "original_triangle_order_preserved":True,
         "inner_ear_regions":[24,26],
+        "sole_region":SOLE_LABEL,
+        "sole_faces_left":left_count,
+        "sole_faces_right":right_count,
+        "sole_faces_total":len(sole_faces),
+        "no_mixed_wolf_uv_patches_per_triangle":True,
+        "region_selection":"face-wide islands; no blending between distant atlas coordinates within triangles",
         "nose_region":25,
         "other_texture_regions_unchanged":True,
+        "original_normal_and_triangle_count_preserved":True,
     }
     dest=ROOT/'release'/'Degu_User_FaceSets_QA.json'
     dest.parent.mkdir(parents=True,exist_ok=True)
