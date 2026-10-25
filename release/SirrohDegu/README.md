@@ -2,7 +2,7 @@
 
 Nowe stworzenie `Degu` to kopia fabrycznego prefabu wilka. Wszystkie komponenty (AI, statystyki, animacje, oswajanie, efekty, dźwięki, drop, kolizje) są sklonowane z `Wolf`. Zmieniono skinned mesh oraz wyświetlaną nazwę.
 
-**Degu nie występuje naturalnie.** Mod nie rejestruje wpisów `SpawnSystem`.
+**Koszatniczka występuje naturalnie na Równinach**, w grupach 3–7; nadal możesz użyć `spawn Degu`.
 
 Po włączeniu konsoli i `devcommands` wpisz:
 
@@ -140,3 +140,13 @@ Wersja usuwa główną przyczynę degeneracji: wcześniejsze reguły przypisywa�
 - Nie zmienia się geometria postaci, układ kości, wagi, animacje, pozycja podczas biegu, oryginalny `wolfMat` ani emisja oczu. Nowa tekstura nie jest generowana i nie dochodzi do nakładania dodatkowego materiału.
 
 Uwagi: ostro odcięta różnica koloru na granicy poprawnie rozdzielonych UV jest naturalna dla pojedynczej atlasowej tekstury i nie stanowi deformacji geometrii. Ewentualne artefakty mipmap / bilinear przy małych wyspach mogą wymagać osobnej analizy w grze. Test w Valheim pozostaje konieczny.
+
+## v0.2.0 — Równiny, polska nazwa i Sirroh Overhaul
+
+- Wyświetlana nazwa w języku polskim: **Koszatniczka**. Identyfikator prefaba pozostaje `Degu`, więc polecenie `spawn Degu` nadal działa. W pozostałych językach nazwa to `Degu`.
+- Wpis do oryginalnych spawnerów `SpawnSystem`: tylko `Heightmap.Biome.Plains`, po 3–7 sztuk na grupę, maksymalnie 21 w aktywnych strefach, interval 250 s, próba 35%, w dzień i w nocy. Rejestracja odbywa się raz na listę, bez własnego cyklicznego tworzenia obiektów.
+- Koszatniczka należy do frakcji `PlainsMonsters`, aby natywne stworzenia tej frakcji nie uznawały jej za wroga. Dzika Koszatniczka nigdy nie wybiera celu przez `BaseAI.FindEnemy`; wyłączono także polowanie na gracza i ataki na budynki. Oswojone Koszatniczki zachowują oryginalną logikę chowańca.
+- Kompatybilność z **Sirroh Overhaul 0.22.66+**: prefab `Degu` korzysta z katalogu wilczych umaszczeń (Default, Albino, Black, DarkBrown, Grey, Blood, Midnight), z wyborem sześciu kolorów oczu oraz istniejącą emisją run żywiołów przy odpowiednim poziomie chowańca. Całość jest opcjonalna — bez Sirroh Overhaul stosowane są zwykłe materiały wilka.
+- Wersja Sirroh Overhaul 0.22.66 dodaje rozpoznawanie Degu w systemie FurRandomizer i menu tresury; nie ma duplikowania AssetBundle ani osobnej DLL z mechanikami.
+
+**Testy w grze:** przyłączanie do frakcji Równin, zachowanie neutralne wobec innych potworów, naturalny spawn w grupach i synchronizacja umaszczenia/oczu/run w multiplayer. Sama kompilacja nie zastępuje testu zachowania.
