@@ -25,7 +25,7 @@ namespace SirrohDegu
         private const string ActiveKey = "furRandomizerSetActive";
 
         private static Harmony harmony;
-        private static MethodInfo selected, send;
+        private static MethodInfo selected, send, eyeName;
         private static FieldInfo pending, dirty, details;
         private static FieldInfo furPrev, furNext, eyePrev, eyeNext, namePrev, nameNext, rune;
         private static Type infoType;
@@ -53,6 +53,8 @@ namespace SirrohDegu
                 Assembly asm=p.Instance.GetType().Assembly;
                 Type taming=asm.GetType("Sirro.PracaFizyczna.TamingSkill",true);
                 Type panel=asm.GetType("Sirro.PracaFizyczna.FamiliarMenuPanel",true);
+                Type wolfVisuals=asm.GetType("Sirro.PracaFizyczna.WolfVisuals",true);
+                eyeName=AccessTools.Method(wolfVisuals,"EyeName");
                 infoType=taming.GetNestedType("FamiliarInfo",BindingFlags.NonPublic);
                 if(infoType==null)throw new MissingMemberException("TamingSkill.FamiliarInfo");
                 selected=AccessTools.Method(panel,"Selected");
@@ -67,7 +69,7 @@ namespace SirrohDegu
                 namePrev=AccessTools.Field(panel,"_fontLeft");
                 nameNext=AccessTools.Field(panel,"_fontRight");
                 rune=AccessTools.Field(panel,"_runesToggle");
-                if(selected==null || send==null || pending==null || dirty==null ||
+                if(selected==null || send==null || eyeName==null || pending==null || dirty==null ||
                    details==null || furPrev==null || furNext==null ||
                    eyePrev==null || eyeNext==null || namePrev==null ||
                    nameNext==null || rune==null)
@@ -242,6 +244,17 @@ namespace SirrohDegu
             return p!=null && p.CanRead && p.GetValue(ui,null) is bool state && state;
         }
 
+        private static void Label(string field,string value)
+        {
+            object label=PanelField(field);
+            PropertyInfo property=label?.GetType().GetProperty("text");
+            if(property!=null && property.CanWrite)property.SetValue(label,value,null);
+        }
+        private static object PanelField(string name)
+        {
+            Type p=selected?.DeclaringType;
+            return p?.GetField(name,BindingFlags.Static|BindingFlags.NonPublic)?.GetValue(null);
+        }
         private static void AfterDetail()
         {
             object info=Selection();
@@ -263,6 +276,10 @@ namespace SirrohDegu
                     alive=true;
                 }
             }
+            Label("_furName",FurNames[Mathf.Clamp(GetInt(info,"Skin"),0,6)]);
+            int eye=Mathf.Clamp(GetInt(info,"EyeColor",0),0,6);
+            string eyeText=eyeName.Invoke(null,new object[]{eye}) as string;
+            Label("_eyeName",eyeText ?? "—");
             Interactable(furPrev,alive);
             Interactable(furNext,alive);
             Interactable(eyePrev,alive);
@@ -270,6 +287,16 @@ namespace SirrohDegu
             Interactable(namePrev,alive);
             Interactable(nameNext,alive);
             Interactable(rune,alive && GetInt(info,"PetLevel",1)>=25);
+            object runeImage=PanelField("_runesIcon");
+            PropertyInfo runeColor=runeImage?.GetType().GetProperty("color");
+            if(runeColor!=null && runeColor.CanWrite)
+            {
+                bool active=Get(info,"ShowRunes") is bool b && b;
+                Color display=alive && GetInt(info,"PetLevel",1)>=25?
+                    active?new Color(.24f,.86f,.32f,1f):new Color(.93f,.24f,.22f,1f):
+                    new Color(.6f,.6f,.6f,.45f);
+                runeColor.SetValue(runeImage,display,null);
+            }
             string message="alive="+alive+" fur="+IsInteractable(furNext)+
                 " eye="+IsInteractable(eyeNext)+" name="+IsInteractable(nameNext)+
                 " rune="+IsInteractable(rune);
