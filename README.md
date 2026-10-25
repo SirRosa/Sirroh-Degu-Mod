@@ -126,3 +126,17 @@ Wersja naprawcza koncentruje się wyłącznie na zachowaniu podczas animacji spr
 - Jednorazowe ostrzeżenia diagnostyczne `Degu sprint diagnostic` zapisują zaobserwowaną zmianę skali oryginalnego wilka lub przesunięcie miednicy. Bez spamu każdą klatkę.
 
 **Weryfikacja:** CI sprawdza kompilację i deformacje w Blenderze; bieg w Valheim należy sprawdzić w grze. Jeśli błąd pozostanie, diagnozę opieramy na zarejestrowanym ostrzeżeniu sprintu, zamiast zmieniać wagi lub kształt modelu.
+
+## v0.1.11 — naprawa rozciągnięć tekstury przy uszach i podeszwach
+
+Oryginalny `wolfMat` ma shader `Custom/Creature` i korzysta z jednej atlasowej mapy `_MainTex` oraz map normalnych i emisji o tych samych UV. Osobne piksele wnętrza uszu, nosów i podeszw **nie są domyślną dodatkową warstwą malowaną na futrze**; są osobnymi wyspami w tej samej teksturze UV. `_StyleTex` nie jest używany (w plikach zasobów oryginalnego wilka `_UseStyles=0`).
+
+Wersja usuwa główną przyczynę degeneracji: wcześniejsze reguły przypisywały UV podeszew i wnętrz uszu indywidualnym wierzchołkom. Trójkąty łączące wierzchołek z atlasu futra z wierzchołkiem atlasu podeszwy interpolowały po dalekich częściach obrazka, tworząc brudne, rozciągnięte tekstury.
+
+- Podstawowy mapping `retarget_wolf_uv_profile.py` nakłada futro na wszystkie trójkąty ciała oraz pozostawia działające UV oczu i pyska; nie przypisuje już osobnej wyspy ucha/podeszwy pojedynczym wierzchołkom.
+- Wyłącznie wybrane przez użytkownika kompletne Face Sets `24` i `26` otrzymują żółte wnętrze ucha; `25` — nos. Zewnętrzna strona ucha pozostaje futrem.
+- Podeszwy są wyznaczane na podstawie całych trójkątów skierowanych mocno ku ziemi (`normal.y < -0.80`, `y < 0.07`), w obszarze stóp. Obie strony używają tej samej jasnoniebieskiej wyspy atlasu.
+- Skrypt duplikuje wierzchołki tylko na granicach wysp UV, zachowując oryginalne pozycje i wagi. Nie ma już trójkątów, które interpolują teksturę pomiędzy odległym fragmentem atlasu futra i specjalnym obszarem.
+- Nie zmienia się geometria postaci, układ kości, wagi, animacje, pozycja podczas biegu, oryginalny `wolfMat` ani emisja oczu. Nowa tekstura nie jest generowana i nie dochodzi do nakładania dodatkowego materiału.
+
+Uwagi: ostro odcięta różnica koloru na granicy poprawnie rozdzielonych UV jest naturalna dla pojedynczej atlasowej tekstury i nie stanowi deformacji geometrii. Ewentualne artefakty mipmap / bilinear przy małych wyspach mogą wymagać osobnej analizy w grze. Test w Valheim pozostaje konieczny.

@@ -35,7 +35,7 @@ def evaluated(mesh):
 def main():
     raw=(ROOT/'Assets'/'Degu.meshbin').read_bytes()
     n,ni,nb=struct.unpack_from('<HHB',raw,4)
-    assert raw[:4]==b'SDG3' and (n,ni,nb)==(1509,7740,34)
+    assert raw[:4]==b'SDG3' and (1550<=n<=1700,ni,nb)==(True,7740,34)
     labels=np.frombuffer(zlib.decompress(base64.b64decode((ROOT/'Assets'/'DeguFaceSets.zlib.b64').read_text().strip())),dtype=np.uint8)
     verts=[];uvs=[];weights=[]
     for i in range(n):
@@ -51,10 +51,10 @@ def main():
         weights.append([(j,w/255) for j,w in zip(ids,ww) if w>0])
     inds=np.frombuffer(raw,dtype='<u2',offset=9+n*17,count=ni).reshape(-1,3)
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    mesh=bpy.data.meshes.new('Degu_OriginalGeometry_UVSplits_1509')
+    mesh=bpy.data.meshes.new('Degu_OriginalGeometry_UVSplits_'+str(n))
     mesh.from_pydata(verts,[],inds.tolist())
     mesh.update()
-    assert len(mesh.vertices)==1509 and len(mesh.polygons)==2580
+    assert len(mesh.vertices)==n and len(mesh.polygons)==2580
     uv_layer=mesh.uv_layers.new(name='Wolf_Valheim_Original_Albedo_UV')
     for poly in mesh.polygons:
         for loop_index in poly.loop_indices:
@@ -150,13 +150,14 @@ def main():
             if val>.005:counts[NAMES[idx]]+=1
     for name in ('L Thigh','R Thigh','L UpperArm','R UpperArm'):
         assert counts[name]>8,(name,counts[name])
-    ob['geometry_source']='User-edited Blender + independent seam vertices for Nose (25) and Inner Ear (24/26); 1509 runtime vertices'
+    ob['geometry_source']='User FaceSets Nose (25), Inner Ears (24/26), sole triangles (27); seam-isolated atlas and ' + str(n) + ' runtime vertices'
     ob['albedo_atlas_reference']=ob_atlas
-    ob['FaceSets']='User-painted 24,25,26 overrides from edited .blend; exact face selection; no spill into adjacent polygons'
+    ob['FaceSets']='User-painted 24,25,26 plus face-wide down-facing sole label 27; every special face isolated from adjacent fur UVs'
     # 34 user-marked triangles: 8 left inner ear, 18 nose, 8 right
     # inner ear. All should preserve Face Set ID after UV seam split.
     fs_counts=collections.Counter(fs.data[face.index].value for face in mesh.polygons)
     assert fs_counts[24]==8 and fs_counts[25]==18 and fs_counts[26]==8, fs_counts
+    assert 40<=fs_counts[27]<=70, ('MISSING_SOLE_ISLANDS',fs_counts[27])
     # Model-left anatomical fixes were mirrored in JOINTS in earlier versions:
     # enforce that reference skeleton is again symmetric about X.
     for left,right in [('L Clavicle','R Clavicle'),('L UpperArm','R UpperArm'),
@@ -170,7 +171,7 @@ def main():
     rig['animation_source']='Valheim vanilla Wolf rig; game controls an independent fitted Degu skeleton'
     rig.show_in_front=True
     arm.display_type='STICK'
-    output=ROOT/'release'/'Degu_Wolf_Reweighted_v0.1.9.blend'
+    output=ROOT/'release'/'Degu_Wolf_Reweighted_v0.1.11.blend'
     output.parent.mkdir(parents=True,exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=str(output),check_existing=False)
     report={'status':'PASS','blender':'NATIVE Blender save + evaluated modifier pose tests',

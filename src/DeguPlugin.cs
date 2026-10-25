@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace SirrohDegu
 {
-    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.1.10")]
+    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.1.11")]
     public sealed class DeguPlugin : BaseUnityPlugin
     {
         internal static DeguPlugin Instance;
