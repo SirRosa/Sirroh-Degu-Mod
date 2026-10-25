@@ -259,7 +259,12 @@ namespace SirrohDegu
                 skin.bones = fitted;
                 skin.rootBone = fitted[0];
                 skin.sharedMesh = model;
-                skin.localBounds = model.bounds;
+                // Runtime retargeting moves skinned vertices beyond the static
+                // Wolf import bounds during gallop. Provide explicit animation
+                // margin to prevent frustum culling during rapid strides.
+                Bounds stableBounds = model.bounds;
+                stableBounds.Expand(Vector3.one * 1.0f);
+                skin.localBounds = stableBounds;
                 skin.updateWhenOffscreen = true;
 
                 // v0.1.8 raised animated PAW BONES to the prefab origin,
