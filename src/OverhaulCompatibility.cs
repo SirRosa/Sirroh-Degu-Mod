@@ -79,6 +79,7 @@ namespace SirrohDegu
                     RequiredMethod(taming,"ChooseEyeColor"),
                     RequiredMethod(taming,"ToggleElementRunes"),
                     RequiredMethod(taming,"Capture"),
+                    RequiredMethod(taming,"SyncFamiliar"),
                     RequiredMethod(taming,"HandleLifecycleRequest"),
                     RequiredMethod(panel,"UpdateDetail"),
                     RequiredMethod(preview,"Show")
@@ -87,6 +88,7 @@ namespace SirrohDegu
                 var display = RequiredMethod(catalog,"DisplayName");
                 var texture = RequiredMethod(catalog,"PreviewTexture");
                 var random = RequiredMethod(catalog,"RandomIndex");
+                var supported = RequiredMethod(catalog,"IsSupported");
                 var previewVisuals = RequiredMethod(visuals,"ApplyPreview");
 
                 patches = new Harmony("sirroh.degu.overhaul.v02265");
@@ -98,18 +100,19 @@ namespace SirrohDegu
                         AccessTools.Method(typeof(OverhaulCompatibility),nameof(AliasSpecies))));
                 patches.Patch(random, prefix: new HarmonyMethod(
                     AccessTools.Method(typeof(OverhaulCompatibility),nameof(AliasAnimal))));
+                patches.Patch(supported, postfix: new HarmonyMethod(
+                    AccessTools.Method(typeof(OverhaulCompatibility),nameof(SupportedDegu))));
                 patches.Patch(tryApply, prefix: new HarmonyMethod(
                     AccessTools.Method(typeof(OverhaulCompatibility),nameof(ApplyDeguPrefix))));
                 patches.Patch(previewVisuals, prefix: new HarmonyMethod(
                     AccessTools.Method(typeof(OverhaulCompatibility),nameof(DeguPreviewPrefix))));
-                // Degu needs a bindpose-safe rendering copy for its separate rig.
-                // This is the ONLY Degu override of the native preview pipeline.
                 patches.Patch(RequiredMethod(preview,"CopyRenderers"),
-                    prefix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewRenderer),
-                        nameof(DeguPreviewRenderer.CopyRenderers))));
+                    prefix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewDiagnostics),"CopyRenderers")));
+                patches.Patch(RequiredMethod(panel,"UpdateDetail"),
+                    prefix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewDiagnostics),"BeforeDetail")),
+                    postfix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewDiagnostics),"AfterDetail")));
                 Enabled = true;
-                DeguPlugin.Log?.LogInfo(
-                    "Degu/Overhaul 0.22.65 single adapter READY: native menu, native RPC, native ZDO; custom coat renderer only.");
+                DeguPlugin.Log?.LogInfo("Overhaul v0.22.65 adapter active: 7 coats, 6 eyes, runes and Tresura.");
             }
             catch (Exception exception)
             {
@@ -145,9 +148,8 @@ namespace SirrohDegu
         private static bool Degu(string animal) =>
             string.Equals(animal, "Degu", StringComparison.OrdinalIgnoreCase);
 
-        // Extend only literal Wolf gates required by eyes, runes, capture,
-        // server validation, preview and menu. Do not replace native RPC,
-        // name-color handling, or independent pet UI controls.
+        // Only extend comparisons against literal "Wolf" in the seven exact
+        // Overhaul 0.22.65 methods. No global alias or Wolf prefab replacement.
         private static bool WolfOrDeguEquals(string a, string b) =>
             string.Equals(a,b,StringComparison.Ordinal) ||
             (a == "Degu" && b == "Wolf") || (a == "Wolf" && b == "Degu");
@@ -187,6 +189,11 @@ namespace SirrohDegu
         {
             if (Degu(animal)) animal="Wolf";
         }
+        private static void SupportedDegu(string name, ref bool __result)
+        {
+            if (Degu(name)) __result=true;
+        }
+
         private static SkinnedMeshRenderer Visible(GameObject creature)
         {
             if (!creature) return null;
@@ -264,24 +271,12 @@ namespace SirrohDegu
             try { return (int)ensureEye.Invoke(null,new object[]{zdo,owner}); }
             catch (Exception e) { WarnOnce("Degu eye selection: "+e.GetBaseException().Message); return 0; }
         }
-        // One visual writer: DeguVariantAssignment watches the authoritative
-        // ZDO. Overhaul's native SyncFamiliar deliberately skips Degu because
-        // MaterialCatalog.IsSupported("Degu") is left untouched (false).
-        internal static bool Apply(GameObject creature,int index)
+        internal static void Apply(GameObject creature,int index)
         {
-            if (!Enabled || !creature) return false;
-            if (SystemInfo.graphicsDeviceType ==
-                UnityEngine.Rendering.GraphicsDeviceType.Null) return true;
-            try
-            {
-                object result=tryApply.Invoke(null,new object[]{creature,"Degu",index});
-                return result is bool applied && applied;
-            }
-            catch(Exception ex)
-            {
-                WarnOnce("Degu appearance: "+ex.GetBaseException().Message);
-                return false;
-            }
+            if (!Enabled || !creature || SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+                return;
+            try { tryApply.Invoke(null,new object[]{creature,"Degu",index}); }
+            catch (Exception e) { WarnOnce("Degu appearance: "+e.GetBaseException().Message); }
         }
         private static void WarnOnce(string error)
         {
@@ -316,14 +311,7 @@ namespace SirrohDegu
                 { yield return Delay; continue; }
                 int eye=OverhaulCompatibility.EnsureRandomEye(zdo,view.IsOwner());
                 if (eye==0) { yield return Delay; continue; }
-                // Catalog materials load after the prefab is registered.
-                // Apply only when available; a failed assignment is not state.
-                if (!OverhaulCompatibility.Apply(gameObject,
-                        zdo.GetInt(OverhaulCompatibility.SkinKey,0)))
-                {
-                    yield return Delay;
-                    continue;
-                }
+                OverhaulCompatibility.Apply(gameObject,zdo.GetInt(OverhaulCompatibility.SkinKey,0));
                 // Wild Degu get one random appearance, while owned pets must
                 // also react to skin/eye/rune ZDO changes after menu selection.
                 // Check once per second, apply only if appearance changed.
@@ -346,14 +334,12 @@ namespace SirrohDegu
                     if(skin!=lastSkin || nextEye!=lastEye || element!=lastElement ||
                        level!=lastLevel || runes!=lastRunes)
                     {
-                        if (OverhaulCompatibility.Apply(gameObject,skin))
-                        {
-                            lastSkin=skin;
-                            lastEye=nextEye;
-                            lastElement=element;
-                            lastLevel=level;
-                            lastRunes=runes;
-                        }
+                        OverhaulCompatibility.Apply(gameObject,skin);
+                        lastSkin=skin;
+                        lastEye=nextEye;
+                        lastElement=element;
+                        lastLevel=level;
+                        lastRunes=runes;
                     }
                 }
                 yield break;

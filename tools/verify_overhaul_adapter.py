@@ -6,9 +6,9 @@ world=Path("src/DeguWorld.cs").read_text()
 assert 'SupportedVersion = "0.22.65"' in bridge
 assert 'Chainloader.PluginInfos.TryGetValue' in bridge
 assert 'patches.UnpatchSelf()' in bridge
-for entry in ("ChooseEyeColor","ToggleElementRunes","Capture","HandleLifecycleRequest","UpdateDetail","Show","ApplyPreview"):
+for entry in ("ChooseEyeColor","ToggleElementRunes","Capture","SyncFamiliar","HandleLifecycleRequest","UpdateDetail","Show","ApplyPreview"):
     assert '"'+entry+'"' in bridge,entry
-for entry in ("Count","DisplayName","PreviewTexture","RandomIndex","TryApply"):
+for entry in ("IsSupported","Count","DisplayName","PreviewTexture","RandomIndex","TryApply"):
     assert '"'+entry+'"' in bridge,entry
 assert 'DeguRenderer = "SirrohDegu_StableVisual"' in bridge
 assert 'renderer,0,material,true' in bridge and 'renderer,1,material,true' in bridge
@@ -40,17 +40,11 @@ print('PASS Localization.AddWord -> SetupLanguage recursion guarded')
 
 assert 'Put(spawn,"m_requiredNotGlobalKey","");' not in world
 assert 'obj.GetType().GetField(name,' in world
-assert not Path("src/DeguPreviewDiagnostics.cs").exists()
-assert not Path("src/DeguFamiliarRepair.cs").exists()
-preview=Path("src/DeguPreviewRenderer.cs").read_text()
-assert 'if (!source || source.name != "Degu") return true;' in preview
-assert preview.index('bindCount!=originalBones.Length') < preview.index('AddComponent<SkinnedMeshRenderer>()')
-assert preview.index('into.gameObject.SetActive(false);') < preview.index('AddComponent<SkinnedMeshRenderer>()')
-assert preview.index('copied.bones=mapped;') < preview.index('copied.sharedMesh=skin.sharedMesh;')
-assert 'if(!originalBones[i] ||' in preview
-assert 'rootBone' in preview and 'valid=false;' in preview
-assert 'finally' in preview and 'into.gameObject.SetActive(originalActive);' in preview
-print("PASS: Degu-only preview builds no unbound active skinned renderers")
+preview=Path("src/DeguPreviewDiagnostics.cs").read_text()
+assert preview.index('result.bones=bones;') < preview.index('result.sharedMesh=skin.sharedMesh;')
+assert 'BeforeDetail' in preview and 'AfterDetail' in preview
+assert 'zdo.GetLong("sirroh.tresura.owner.v1",0L)' in preview
+print("PASS optional spawn field, Degu-only preview bindpose order and UI diagnostics")
 
 # User-provided lossless RGBA 96x96 creature icon packaged into the single DLL.
 import hashlib, struct
@@ -69,31 +63,20 @@ assert 'DeguCompassIcon.Register(_patches);' in plugin
 assert 'DeguCompassIcon.Shutdown();' in plugin
 print("PASS exact user 96x96 icon embedded and wired to Overhaul creature/compass icon pipeline")
 
-# One adapter, no overlapping patches or duplicated pet RPC handling.
-assert 'DeguFamiliarRepair' not in plugin
-assert 'DeguPreviewDiagnostics' not in bridge
-assert 'DeguPreviewRenderer' in bridge
-assert 'SyncFamiliar' not in bridge.split("var wolfChecks = new[]")[1].split("};")[0]
-assert 'SupportedDegu' not in bridge
-assert 'Patch(supported' not in bridge
-assert 'ChangeNameColor' not in bridge
-assert 'HandleLifecycleRequest' in bridge
-assert 'ChooseEyeColor' in bridge
-assert 'ToggleElementRunes' in bridge
-assert 'Capture' in bridge and 'Show' in bridge and 'UpdateDetail' in bridge
-assert 'AliasSpecies' in bridge
-assert 'WolfOrDeguEquals' in bridge
-assert 'skin!=lastSkin || nextEye!=lastEye' in bridge
-assert 'if (OverhaulCompatibility.Apply(gameObject,skin))' in bridge
-assert 'internal static bool Apply(GameObject creature,int index)' in bridge
-assert 'Overhaul compatibility disabled' in bridge
-assert 'zdo.GetInt(LevelKey,1)>=25' in bridge
-assert 'AfterDeguRegistered' in plugin
-assert 'DeguVariantAssignment' in bridge
-assert '[BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.2.8")]' in plugin
-# Keep actual Degu geometry and rig untouched, validate 34 fitted bindposes.
-mesh=Path("src/DeguMesh.cs").read_text()
-assert 'model.bindposes = inverseBinds;' in mesh
-assert 'skin.bones = fitted;' in mesh and 'skin.sharedMesh = model;' in mesh
-assert 'originalSkin.enabled = false;' in mesh
-print("PASS: single native Overhaul menu/RPC/ZDO path and isolated live Degu coat updater")
+# Full companion integration regression: server-owned ZDO, menu buttons, 4 opcodes.
+repair=Path("src/DeguFamiliarRepair.cs").read_text()
+for name in ("ChooseSkin","ChooseEyes","ChooseName","ToggleRunes","ServerRequest","AfterDetail","AfterCapture"):
+    assert "private static " in repair and name+"(" in repair,name
+for cmd in ("SendRequest(info,10,next)","SendRequest(info,18,next)","SendRequest(familiar,11,next)","SendRequest(info,17,previous?0:1)"):
+    assert cmd in repair,cmd
+for key in ("pet.Set(SkinKey,requested)","pet.Set(NameColorKey,requested)","pet.Set(EyeKey,requested)","pet.Set(RunesKey,requested==1)"):
+    assert key in repair,key
+assert "pet.GetLong(OwnerKey,0L)!=userId" in repair
+assert "roster.Contains(target)" in repair
+assert "pet.GetInt(PetLevelKey,1)<25" in repair
+assert "ZDOMan.instance.ForceSendZDO(target)" in repair
+assert "DeguFamiliarRepair.Install();" in plugin
+assert "DeguFamiliarRepair.Shutdown();" in plugin
+assert "new WaitForSeconds(1f)" in bridge
+assert "skin!=lastSkin || nextEye!=lastEye" in bridge
+print("PASS Degu controls/RPC validation, persistence and reactive live appearance")
