@@ -66,14 +66,12 @@ namespace SirrohDegu
             lastState=value;
             DeguPlugin.Log?.LogInfo("Degu Tresura controls: "+value);
         }
-        // Valheim 0.22.65's generic preview creates an enabled renderer and
-        // assigns sharedMesh before bones. Unity validates it immediately and
-        // emits "Bones do not match bindpose" during that transient state.
-        // For Degu only, preflight the entire binding and keep each new
-        // renderer disabled until its skeleton and mesh are both complete.
+        // Overhaul's renderer copies mesh before bones. On Degu, the preview
+        // can report "Bones do not match bindpose" in that interim state.
+        // Copy ONLY Degu's visible renderer with bones assigned first.
         private static bool CopyRenderers(object __instance,GameObject source,GameObject living)
         {
-            if (!source || (source.name != "Degu" && source.name != "Degu(Clone)")) return true;
+            if(!source || source.name!="Degu")return true;
             try
             {
                 var map=__instance.GetType().GetField("_transforms",InstancePrivate)
@@ -97,56 +95,27 @@ namespace SirrohDegu
                     }
                     var skin=from.GetComponent<SkinnedMeshRenderer>();
                     if(!skin || !skin.enabled || !skin.sharedMesh)continue;
-                    Mesh mesh=skin.sharedMesh;
+                    var result=into.gameObject.AddComponent<SkinnedMeshRenderer>();
                     Transform[] original=skin.bones;
-                    int count=mesh.bindposes.Length;
-                    // Reject invalid source skin BEFORE adding any Unity renderer.
-                    if(original==null || count==0 || original.Length!=count)
+                    var bones=new Transform[original.Length];
+                    for(int i=0;i<bones.Length;i++)
+                        bones[i]=original[i] && map.TryGetValue(original[i],out Transform found)?found:into;
+                    if(skin.sharedMesh.bindposes.Length!=bones.Length)
                     {
-                        DeguPlugin.Log?.LogError("Degu preview rejected invalid source skin "+
-                            from.name+": bones="+(original==null ? -1 : original.Length)+
-                            ", bindposes="+count);
-                        continue;
-                    }
-                    var bones=new Transform[count];
-                    bool complete=true;
-                    for(int i=0;i<count;i++)
-                    {
-                        Transform target;
-                        if(!original[i] || !map.TryGetValue(original[i],out target) || !target)
-                        { complete=false; break; }
-                        bones[i]=target;
-                    }
-                    Transform root;
-                    if(!complete || !skin.rootBone ||
-                        !map.TryGetValue(skin.rootBone,out root) || !root)
-                    {
-                        DeguPlugin.Log?.LogError("Degu preview rejected unmapped skeleton for "+from.name);
-                        continue;
-                    }
-                    // Unity must not see mesh data while this renderer has zero bones.
-                    SkinnedMeshRenderer result=into.gameObject.AddComponent<SkinnedMeshRenderer>();
-                    result.enabled=false;
-                    try
-                    {
-                        result.bones=bones;
-                        result.rootBone=root;
-                        result.sharedMesh=mesh;
-                        if(result.bones.Length!=result.sharedMesh.bindposes.Length)
-                            throw new InvalidOperationException("Degu preview renderer lost bone bindings");
-                        var live=Matching(from,source.transform,living?living.transform:null);
-                        result.sharedMaterials=live && live.sharedMaterials.Length==skin.sharedMaterials.Length
-                            ?live.sharedMaterials:skin.sharedMaterials;
-                        result.localBounds=skin.localBounds;
-                        result.updateWhenOffscreen=true;
-                        result.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
-                        result.enabled=true;
-                    }
-                    catch
-                    {
+                        DeguPlugin.Log?.LogWarning("Degu preview skipped inconsistent mesh: bindposes="+
+                            skin.sharedMesh.bindposes.Length+", bones="+bones.Length);
                         UnityEngine.Object.Destroy(result);
-                        throw;
+                        continue;
                     }
+                    result.bones=bones;
+                    result.rootBone=skin.rootBone && map.TryGetValue(skin.rootBone,out Transform root)?root:into;
+                    result.sharedMesh=skin.sharedMesh;
+                    var live=Matching(from,source.transform,living?living.transform:null);
+                    result.sharedMaterials=live && live.sharedMaterials.Length==skin.sharedMaterials.Length
+                        ?live.sharedMaterials:skin.sharedMaterials;
+                    result.localBounds=skin.localBounds;
+                    result.updateWhenOffscreen=true;
+                    result.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
                 }
             }
             catch(Exception e)

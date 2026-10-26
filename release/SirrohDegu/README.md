@@ -12,9 +12,9 @@ spawn Degu
 
 ## Instalacja
 
-**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.2.6.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
+**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.2.5.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
 
-**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.2.6.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
+**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.2.5.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
 
 Model pochodzi z `Degu.blend` i zawiera wagi dla 34 kości kompatybilnych nazwami z oryginalnym wilkiem. Żaden skrypt odpowiedzialny za zachowanie wilka nie jest zastępowany.
 
@@ -183,13 +183,3 @@ Oryginalna, przesłana przez użytkownika ikona PNG 96×96 RGBA jest osadzona w 
 ## v0.2.5 — naprawa Tresury Degu
 
 Niezależny, ograniczony do Sirroh Overhaul 0.22.65 adapter obsługuje wszystkie poziomy zmiany wyglądu Koszatniczki: 7 skór, 6 kolorów oczu, 16 kolorów imienia i runy od poziomu 25. Ustawienia w menu są odblokowywane dla żywych Degu, klient wysyła oryginalne żądania Tresury, a serwer weryfikuje tożsamość, przynależność chowańca do zatwierdzonej listy i zakresy wartości przed zapisem ZDO. Żywe Degu odświeżają materiały wyłącznie po zmianie danych wyglądu. Kod Overhaul nie jest modyfikowany. Działanie runtime musi zostać sprawdzone w grze.
-
-
-## v0.2.6 — audyt i inicjalizacja bindpose
-
-- Renderer Degu pozostaje wyłączony do chwili zweryfikowania 34 kości, macierzy bindpose i przypisania gotowej siatki.
-- Podgląd Degu w Tresurze weryfikuje źródłowe powiązania kości **przed** utworzeniem nowego SkinnedMeshRenderer. Brakujące kości nie są zastępowane przypadkowymi transformami; niezgodne rendery są pomijane i jawnie raportowane.
-- Po pierwszym rzeczywistym spawnie log zawiera `Degu bindpose QA PASS/FAILED` z liczbą kości i bindpose. To test runtime, odrębny od statycznych raportów Blendera.
-- Adapter nadal wymaga dokładnie Sirroh Overhaul 0.22.65; kod i assety Overhaul nie są modyfikowane.
-
-GitHub Actions weryfikuje statyczne warunki inicjalizacji i kompilację. Aby potwierdzić brak ostrzeżeń z natywnego silnika Unity, konieczny jest test w działającym kliencie Valheim.

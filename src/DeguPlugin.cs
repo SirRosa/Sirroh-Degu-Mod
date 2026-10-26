@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace SirrohDegu
 {
-    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.2.6")]
+    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.2.5")]
     [BepInDependency("sirro.valheim.pracafizyczna", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class DeguPlugin : BaseUnityPlugin
     {
@@ -64,34 +64,13 @@ namespace SirrohDegu
         [HarmonyPatch(typeof(ZNetView), "Awake")]
         private static class DeguSpawnDiagnostic
         {
-            private static bool firstSkinBindingAudited;
             // Diagnostic only: executed for all views, logging only Degu spawns.
             [HarmonyPostfix]
             private static void Postfix(ZNetView __instance)
             {
-                if (__instance == null || __instance.gameObject == null ||
-                    __instance.gameObject.name != "Degu(Clone)") return;
-                Log?.LogInfo("Degu(Clone): ZNetView.Awake executed (runtime spawn initialized).");
-                // Audit the real instantiated renderer, not only the Blender
-                // export or static mesh data. Report once to avoid log flooding.
-                if (firstSkinBindingAudited) return;
-                firstSkinBindingAudited = true;
-                SkinnedMeshRenderer visual = null;
-                foreach (var skin in __instance.GetComponentsInChildren<SkinnedMeshRenderer>(true))
-                    if (skin != null && skin.name == "SirrohDegu_StableVisual")
-                    { visual = skin; break; }
-                if (visual == null || visual.sharedMesh == null)
-                {
-                    Log?.LogError("Degu bindpose QA FAILED on live clone: stable visual missing.");
-                    return;
-                }
-                int boneCount = visual.bones.Length;
-                int poseCount = visual.sharedMesh.bindposes.Length;
-                if (boneCount != poseCount || boneCount != 34)
-                    Log?.LogError("Degu bindpose QA FAILED on live clone: bones="+boneCount+
-                                  ", bindposes="+poseCount+" (expected 34/34).");
-                else
-                    Log?.LogInfo("Degu bindpose QA PASS on live clone: bones=34, bindposes=34.");
+                if (__instance != null && __instance.gameObject != null &&
+                    __instance.gameObject.name == "Degu(Clone)")
+                    Log?.LogInfo("Degu(Clone): ZNetView.Awake executed (runtime spawn initialized).");
             }
         }
 
