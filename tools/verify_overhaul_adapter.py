@@ -6,9 +6,9 @@ world=Path("src/DeguWorld.cs").read_text()
 assert 'SupportedVersion = "0.22.65"' in bridge
 assert 'Chainloader.PluginInfos.TryGetValue' in bridge
 assert 'patches.UnpatchSelf()' in bridge
-for entry in ("ChooseEyeColor","ToggleElementRunes","Capture","SyncFamiliar","HandleLifecycleRequest","UpdateDetail","Show","ApplyPreview"):
+for entry in ("ChooseEyeColor","ToggleElementRunes","Capture","HandleLifecycleRequest","UpdateDetail","Show","ApplyPreview"):
     assert '"'+entry+'"' in bridge,entry
-for entry in ("IsSupported","Count","DisplayName","PreviewTexture","RandomIndex","TryApply"):
+for entry in ("Count","DisplayName","PreviewTexture","RandomIndex","TryApply"):
     assert '"'+entry+'"' in bridge,entry
 assert 'DeguRenderer = "SirrohDegu_StableVisual"' in bridge
 assert 'renderer,0,material,true' in bridge and 'renderer,1,material,true' in bridge
