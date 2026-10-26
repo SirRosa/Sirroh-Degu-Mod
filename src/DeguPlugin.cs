@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace SirrohDegu
 {
-    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.2.5")]
+    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.2.7")]
     [BepInDependency("sirro.valheim.pracafizyczna", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class DeguPlugin : BaseUnityPlugin
     {
@@ -24,6 +24,7 @@ namespace SirrohDegu
         {
             Instance = this;
             Log = Logger;
+            DeguBindposeDiagnostics.Install();
 
             _patches = new Harmony("sirroh.valheim.degu");
             _patches.PatchAll(typeof(DeguPlugin).Assembly);
@@ -32,7 +33,14 @@ namespace SirrohDegu
             OverhaulCompatibility.Install();
             DeguCompassIcon.Register(_patches);
             DeguFamiliarRepair.Install();
-            Logger.LogInfo("Sirroh Degu v0.2.5 loaded. Waiting for ZNetScene prefab registry.");
+            Logger.LogInfo("Sirroh Degu 0.2.7 compatibility "+
+                (OverhaulCompatibility.Enabled && DeguFamiliarRepair.Active?"READY":"INCOMPLETE")+
+                "; waiting for prefab registry.");
+        }
+
+        private void Update()
+        {
+            DeguBindposeDiagnostics.Flush();
         }
 
         private void OnDestroy()
@@ -40,6 +48,7 @@ namespace SirrohDegu
             OverhaulCompatibility.Shutdown();
             DeguCompassIcon.Shutdown();
             DeguFamiliarRepair.Shutdown();
+            DeguBindposeDiagnostics.Shutdown();
             if (_patches != null) _patches.UnpatchSelf();
             if (_prefabHolder != null) UnityEngine.Object.Destroy(_prefabHolder);
             _prefabHolder = null;
@@ -70,7 +79,10 @@ namespace SirrohDegu
             {
                 if (__instance != null && __instance.gameObject != null &&
                     __instance.gameObject.name == "Degu(Clone)")
+                {
                     Log?.LogInfo("Degu(Clone): ZNetView.Awake executed (runtime spawn initialized).");
+                    DeguBindposeDiagnostics.Audit(__instance.gameObject,"live spawn",true);
+                }
             }
         }
 
@@ -174,7 +186,8 @@ namespace SirrohDegu
                 try
                 {
                     ZNetView.m_forceDisableInit = true;
-                    clone = UnityEngine.Object.Instantiate(wolf, holder.transform);
+                    using(DeguBindposeDiagnostics.Scope("cloning Wolf prefab"))
+                        clone = UnityEngine.Object.Instantiate(wolf, holder.transform);
                 }
                 finally
                 {
@@ -205,9 +218,13 @@ namespace SirrohDegu
                     // The Degu renderer is now a NEW stable child of the actor,
                     // not the original Wolf skinned renderer. Keep ONLY the
                     // new stable visual, leaving original bones/Animator live.
-                    SkinnedMeshRenderer deguVisual = DeguMesh.ReplaceMesh(target, clone);
+                    DeguBindposeDiagnostics.Audit(clone,"original Wolf renderer",false);
+                    SkinnedMeshRenderer deguVisual;
+                    using(DeguBindposeDiagnostics.Scope("fitting Degu skinned mesh"))
+                        deguVisual = DeguMesh.ReplaceMesh(target, clone);
                     foreach (var other in clone.GetComponentsInChildren<SkinnedMeshRenderer>(true))
                         if (other != deguVisual) other.enabled = false;
+                    DeguBindposeDiagnostics.Audit(clone,"registered Degu prefab",false);
 
                     var character = clone.GetComponent<Character>();
                     if (character == null) throw new InvalidOperationException("Wolf has no Character component.");
