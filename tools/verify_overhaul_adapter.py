@@ -41,7 +41,14 @@ print('PASS Localization.AddWord -> SetupLanguage recursion guarded')
 assert 'Put(spawn,"m_requiredNotGlobalKey","");' not in world
 assert 'obj.GetType().GetField(name,' in world
 preview=Path("src/DeguPreviewDiagnostics.cs").read_text()
-assert preview.index('result.bones=bones;') < preview.index('result.sharedMesh=skin.sharedMesh;')
+assert preview.index('result.bones=bones;') < preview.index('result.sharedMesh=mesh;')
+assert preview.index('if(original==null || count==0 || original.Length!=count)') < preview.index('SkinnedMeshRenderer result=into.gameObject.AddComponent<SkinnedMeshRenderer>();')
+assert preview.index('result.enabled=false;') < preview.index('result.sharedMesh=mesh;') < preview.index('result.enabled=true;')
+assert 'map.TryGetValue(original[i],out target)' in preview
+meshSource=Path('src/DeguMesh.cs').read_text()
+assert meshSource.index('skin.enabled = false;') < meshSource.index('skin.bones = fitted;') < meshSource.index('skin.sharedMesh = model;') < meshSource.index('skin.enabled = true;')
+assert 'if (model.bindposes.Length != fitted.Length' in meshSource
+assert 'Degu bindpose QA PASS on live clone' in plugin
 assert 'BeforeDetail' in preview and 'AfterDetail' in preview
 assert 'zdo.GetLong("sirroh.tresura.owner.v1",0L)' in preview
 print("PASS optional spawn field, Degu-only preview bindpose order and UI diagnostics")

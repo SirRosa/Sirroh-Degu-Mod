@@ -109,6 +109,9 @@ namespace SirrohDegu
                     sourceScale.z / Mathf.Max(0.00001f, Mathf.Abs(parentScale.z)));
                 SkinnedMeshRenderer skin =
                     stableVisual.AddComponent<SkinnedMeshRenderer>();
+                // This is a live Unity component: never let it render in the
+                // intermediate state with no skeleton or an unbound mesh.
+                skin.enabled = false;
                 skin.sharedMaterials = originalSkin.sharedMaterials;
                 skin.shadowCastingMode = originalSkin.shadowCastingMode;
                 skin.receiveShadows = originalSkin.receiveShadows;
@@ -220,6 +223,11 @@ namespace SirrohDegu
                 for (int i=0; i<fitted.Length; i++)
                     inverseBinds[i] = fitted[i].worldToLocalMatrix * skin.transform.localToWorldMatrix;
                 model.bindposes = inverseBinds;
+                if (model.bindposes.Length != fitted.Length || fitted.Length != Names.Length)
+                    throw new InvalidOperationException("Degu bindpose setup does not match 34 fitted bones.");
+                for (int i = 0; i < fitted.Length; ++i)
+                    if (fitted[i] == null)
+                        throw new InvalidOperationException("Degu fitted bone missing at index " + i);
                 model.RecalculateBounds();
                 // Split eye triangles into a separately controllable submesh
                 // using the SAME original wolfMat in both slots. Opposite
@@ -256,9 +264,13 @@ namespace SirrohDegu
                 skin.sharedMaterials = new[] { originalWolfMaterial, originalWolfMaterial };
                 // Keep ORIGINAL Valheim Wolf material & its original atlas:
                 // eye emissive is isolated by submesh MaterialPropertyBlock.
+                // Attach the complete skeleton BEFORE exposing the mesh to Unity.
                 skin.bones = fitted;
                 skin.rootBone = fitted[0];
                 skin.sharedMesh = model;
+                if (skin.bones.Length != model.bindposes.Length)
+                    throw new InvalidOperationException("Degu renderer bone/bindpose count changed during setup.");
+                skin.enabled = true;
                 // Runtime retargeting moves skinned vertices beyond the static
                 // Wolf import bounds during gallop. Provide explicit animation
                 // margin to prevent frustum culling during rapid strides.
