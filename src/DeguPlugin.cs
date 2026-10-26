@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace SirrohDegu
 {
-    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.2.5")]
+    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.2.8")]
     [BepInDependency("sirro.valheim.pracafizyczna", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class DeguPlugin : BaseUnityPlugin
     {
@@ -31,15 +31,13 @@ namespace SirrohDegu
             DeguWorld.Localize();
             OverhaulCompatibility.Install();
             DeguCompassIcon.Register(_patches);
-            DeguFamiliarRepair.Install();
-            Logger.LogInfo("Sirroh Degu v0.2.5 loaded. Waiting for ZNetScene prefab registry.");
+            Logger.LogInfo("Sirroh Degu v0.2.8 loaded. Single Overhaul 0.22.65 integration; waiting for prefab registry.");
         }
 
         private void OnDestroy()
         {
             OverhaulCompatibility.Shutdown();
             DeguCompassIcon.Shutdown();
-            DeguFamiliarRepair.Shutdown();
             if (_patches != null) _patches.UnpatchSelf();
             if (_prefabHolder != null) UnityEngine.Object.Destroy(_prefabHolder);
             _prefabHolder = null;

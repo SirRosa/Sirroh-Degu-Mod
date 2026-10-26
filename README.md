@@ -12,9 +12,9 @@ spawn Degu
 
 ## Instalacja
 
-**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.2.5.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
+**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.2.8.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
 
-**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.2.5.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
+**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.2.8.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
 
 Model pochodzi z `Degu.blend` i zawiera wagi dla 34 kości kompatybilnych nazwami z oryginalnym wilkiem. Żaden skrypt odpowiedzialny za zachowanie wilka nie jest zastępowany.
 
@@ -183,3 +183,16 @@ Oryginalna, przesłana przez użytkownika ikona PNG 96×96 RGBA jest osadzona w 
 ## v0.2.5 — naprawa Tresury Degu
 
 Niezależny, ograniczony do Sirroh Overhaul 0.22.65 adapter obsługuje wszystkie poziomy zmiany wyglądu Koszatniczki: 7 skór, 6 kolorów oczu, 16 kolorów imienia i runy od poziomu 25. Ustawienia w menu są odblokowywane dla żywych Degu, klient wysyła oryginalne żądania Tresury, a serwer weryfikuje tożsamość, przynależność chowańca do zatwierdzonej listy i zakresy wartości przed zapisem ZDO. Żywe Degu odświeżają materiały wyłącznie po zmianie danych wyglądu. Kod Overhaul nie jest modyfikowany. Działanie runtime musi zostać sprawdzone w grze.
+
+## v0.2.8 — pojedyncza integracja z Overhaul 0.22.65
+
+Ta wersja zastępuje **dwa równoległe adaptery Harmony** jednym spójnym adapterem gatunku `Degu`. Nie dodaje nowego menu ani nowego RPC:
+
+- **Umaszczenie:** natywne `TamingSkill.ChooseSkin` → `MaterialCatalog.Count` → istniejące żądanie serwerowe op=10 → `furRandomizerSet` w ZDO → jeden renderer Degu. Zachowano 7 istniejących wariantów.
+- **Oczy:** natywne `ChooseEyeColor` → op=18 → `sirroh.wolf.eye.v1` w ZDO → materiał oczu Degu. Zachowano 6 kolorów.
+- **Kolor imienia:** natywne `ChangeNameColor` → op=11 → `sirroh.tresura.namecolor.v1`; bez przechwytywania oryginalnego działania.
+- **Runy:** natywne `ToggleElementRunes` → op=17 → `sirroh.wolf.showrunes.v1`; ograniczenia poziomów pozostają po stronie Overhaul.
+- **Podgląd:** kopia transformacji korzysta z pełnych, sprawdzonych bindposes i kości. Komponent `SkinnedMeshRenderer` powstaje wyłącznie na nieaktywnym obiekcie; aktywacja następuje po kompletnej konfiguracji.
+- Usunięto `DeguFamiliarRepair` i `DeguPreviewDiagnostics` z kodu kompilowanego do DLL. Nie zmieniono siatki, wag, pozycji wiązania ani animacji Degu.
+
+**Zakres testów:** GitHub Actions sprawdza statyczne kontrakty, kompilację DLL i deformację modelu w Blenderze. Nie uruchamia Unity klienta Valheim. Błędu `Bones do not match bindpose` nie należy oznaczać jako usuniętego, dopóki nie zostanie zweryfikowany w grze. 
