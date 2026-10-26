@@ -271,21 +271,12 @@ namespace SirrohDegu
             try { return (int)ensureEye.Invoke(null,new object[]{zdo,owner}); }
             catch (Exception e) { WarnOnce("Degu eye selection: "+e.GetBaseException().Message); return 0; }
         }
-        internal static bool Apply(GameObject creature,int index)
+        internal static void Apply(GameObject creature,int index)
         {
-            if (!Enabled || !creature) return false;
-            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
-                return true; // Dedicated server has no visuals.
-            try
-            {
-                object result=tryApply.Invoke(null,new object[]{creature,"Degu",index});
-                return result is bool applied && applied;
-            }
-            catch(Exception e)
-            {
-                WarnOnce("Degu appearance: "+e.GetBaseException().Message);
-                return false;
-            }
+            if (!Enabled || !creature || SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+                return;
+            try { tryApply.Invoke(null,new object[]{creature,"Degu",index}); }
+            catch (Exception e) { WarnOnce("Degu appearance: "+e.GetBaseException().Message); }
         }
         private static void WarnOnce(string error)
         {
@@ -320,12 +311,7 @@ namespace SirrohDegu
                 { yield return Delay; continue; }
                 int eye=OverhaulCompatibility.EnsureRandomEye(zdo,view.IsOwner());
                 if (eye==0) { yield return Delay; continue; }
-                // Don't cache a coat as applied while MaterialCatalog is still loading.
-                if(!OverhaulCompatibility.Apply(gameObject,zdo.GetInt(OverhaulCompatibility.SkinKey,0)))
-                {
-                    yield return Delay;
-                    continue;
-                }
+                OverhaulCompatibility.Apply(gameObject,zdo.GetInt(OverhaulCompatibility.SkinKey,0));
                 // Wild Degu get one random appearance, while owned pets must
                 // also react to skin/eye/rune ZDO changes after menu selection.
                 // Check once per second, apply only if appearance changed.
@@ -348,14 +334,12 @@ namespace SirrohDegu
                     if(skin!=lastSkin || nextEye!=lastEye || element!=lastElement ||
                        level!=lastLevel || runes!=lastRunes)
                     {
-                        if(OverhaulCompatibility.Apply(gameObject,skin))
-                        {
-                            lastSkin=skin;
-                            lastEye=nextEye;
-                            lastElement=element;
-                            lastLevel=level;
-                            lastRunes=runes;
-                        }
+                        OverhaulCompatibility.Apply(gameObject,skin);
+                        lastSkin=skin;
+                        lastEye=nextEye;
+                        lastElement=element;
+                        lastLevel=level;
+                        lastRunes=runes;
                     }
                 }
                 yield break;

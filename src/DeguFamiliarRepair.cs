@@ -25,7 +25,6 @@ namespace SirrohDegu
         private const string ActiveKey = "furRandomizerSetActive";
 
         private static Harmony harmony;
-        internal static bool Active { get; private set; }
         private static MethodInfo selected, send, eyeName;
         private static FieldInfo pending, dirty, details;
         private static FieldInfo furPrev, furNext, eyePrev, eyeNext, namePrev, nameNext, rune;
@@ -47,14 +46,8 @@ namespace SirrohDegu
 
         internal static void Install()
         {
-            Active=false;
-            if(!Chainloader.PluginInfos.TryGetValue(OverhaulId,out var p))return;
-            if(p.Metadata.Version.ToString()!=RequiredVersion)
-            {
-                DeguPlugin.Log?.LogWarning("Degu Tresura requires Overhaul "+RequiredVersion+
-                    ", detected "+p.Metadata.Version);
-                return;
-            }
+            if(!Chainloader.PluginInfos.TryGetValue(OverhaulId,out var p) ||
+               p.Metadata.Version.ToString()!=RequiredVersion) return;
             try
             {
                 Assembly asm=p.Instance.GetType().Assembly;
@@ -94,15 +87,13 @@ namespace SirrohDegu
                 Patch(taming,"HandleLifecycleRequest",nameof(ServerRequest),true,false);
                 Patch(taming,"Capture",nameof(AfterCapture),false,true);
                 Patch(panel,"UpdateDetail",nameof(AfterDetail),false,true);
-                Active=true;
                 DeguPlugin.Log?.LogInfo(
-                    "Degu Tresura READY: 7 coats, 6 eyes, name colors, runes, authenticated RPCs.");
+                    "Degu v0.2.5 Tresura: controls, 7 coats, 6 eyes, name colors, level-25 runes and validated RPCs registered.");
             }
             catch(Exception e)
             {
                 harmony?.UnpatchSelf();
                 harmony=null;
-                Active=false;
                 DeguPlugin.Log?.LogError("Degu Tresura adapter unavailable: "+e);
             }
         }
@@ -117,7 +108,6 @@ namespace SirrohDegu
         }
         internal static void Shutdown()
         {
-            Active=false;
             harmony?.UnpatchSelf();
             harmony=null;
             lastState=null;
@@ -132,31 +122,18 @@ namespace SirrohDegu
         private static void SkinName(object info,ref string __result)
         {if(IsDegu(info))__result=FurNames[Mathf.Clamp(GetInt(info,"Skin"),0,6)];}
 
-        private static bool SendRequest(object info,int opcode,int value)
+        private static void SendRequest(object info,int opcode,int value)
         {
             Player player=Player.m_localPlayer;
-            if(!player || !Alive(info) || GetId(info)==ZDOID.None ||
-               ZRoutedRpc.instance==null)return false;
-            ZNetView playerView=player.GetComponent<ZNetView>();
-            if(!playerView || !playerView.IsValid())return false;
-            try
-            {
-                send.Invoke(null,new object[]{player,opcode,GetId(info),Vector3.zero,value});
-                return true;
-            }
-            catch(Exception ex)
-            {
-                DeguPlugin.Log?.LogWarning("Degu Tresura RPC "+opcode+" failed: "+
-                    ex.GetBaseException().Message);
-                return false;
-            }
+            if(!player || !Alive(info) || GetId(info)==ZDOID.None) return;
+            send.Invoke(null,new object[]{player,opcode,GetId(info),Vector3.zero,value});
         }
         private static bool ChooseSkin(object info,int direction)
         {
             if(!IsDegu(info))return true;
             if(!Alive(info))return false;
             int next=(GetInt(info,"Skin")+direction+7)%7;
-            if(!SendRequest(info,10,next))return false;
+            SendRequest(info,10,next);
             Set(info,"Skin",next);
             Dirty();
             return false;
@@ -167,7 +144,7 @@ namespace SirrohDegu
             if(!Alive(info))return false;
             int current=Mathf.Clamp(GetInt(info,"EyeColor",1),1,6);
             int next=1+(current-1+direction+6)%6;
-            if(!SendRequest(info,18,next))return false;
+            SendRequest(info,18,next);
             Set(info,"EyeColor",next);
             Dirty();
             return false;
@@ -177,7 +154,7 @@ namespace SirrohDegu
             if(!IsDegu(familiar))return true;
             if(!Alive(familiar))return false;
             int next=(GetInt(familiar,"NameColor",1)+direction+16)%16;
-            if(!SendRequest(familiar,11,next))return false;
+            SendRequest(familiar,11,next);
             Set(familiar,"NameColor",next);
             Dirty();
             return false;
@@ -187,7 +164,7 @@ namespace SirrohDegu
             if(!IsDegu(info))return true;
             if(!Alive(info) || GetInt(info,"PetLevel",1)<25)return false;
             bool previous=Get(info,"ShowRunes") is bool b && b;
-            if(!SendRequest(info,17,previous?0:1))return false;
+            SendRequest(info,17,previous?0:1);
             Set(info,"ShowRunes",!previous);
             Dirty();
             return false;

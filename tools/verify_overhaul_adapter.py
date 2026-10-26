@@ -80,28 +80,3 @@ assert "DeguFamiliarRepair.Shutdown();" in plugin
 assert "new WaitForSeconds(1f)" in bridge
 assert "skin!=lastSkin || nextEye!=lastEye" in bridge
 print("PASS Degu controls/RPC validation, persistence and reactive live appearance")
-
-# v0.2.7 regression: UI must not acknowledge a request that cannot be sent.
-assert 'internal static bool Apply(GameObject creature,int index)' in bridge
-assert 'if(!OverhaulCompatibility.Apply(gameObject,zdo.GetInt(' in bridge
-assert 'if(OverhaulCompatibility.Apply(gameObject,skin))' in bridge
-repair=Path("src/DeguFamiliarRepair.cs").read_text()
-assert 'internal static bool Active { get; private set; }' in repair
-assert 'private static bool SendRequest(object info,int opcode,int value)' in repair
-for needle in ('if(!SendRequest(info,10,next))', 'if(!SendRequest(info,18,next))',
-               'if(!SendRequest(familiar,11,next))', 'if(!SendRequest(info,17,previous?0:1))'):
-    assert needle in repair,needle
-diagnostic=Path("src/DeguBindposeDiagnostics.cs").read_text()
-plugin=Path("src/DeguPlugin.cs").read_text()
-preview=Path("src/DeguPreviewDiagnostics.cs").read_text()
-for needle in ('Application.logMessageReceived+=OnLog', 'Bones do not match bindpose',
-               'Resources.FindObjectsOfTypeAll<SkinnedMeshRenderer>()'):
-    assert needle in diagnostic,needle
-for needle in ('DeguBindposeDiagnostics.Install();',
-               'DeguBindposeDiagnostics.Shutdown();',
-               'DeguBindposeDiagnostics.Flush();',
-               'DeguBindposeDiagnostics.Audit(clone,'):
-    assert needle in plugin,needle
-assert 'DeguBindposeDiagnostics.Scope("Degu familiar preview renderer copy")' in preview
-assert 'Sirroh Degu", "0.2.7"' in plugin
-print("PASS v0.2.7 Tresura RPC guards, appearance retries and bindpose instrumentation")

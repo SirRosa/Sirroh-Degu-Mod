@@ -72,11 +72,6 @@ namespace SirrohDegu
         private static bool CopyRenderers(object __instance,GameObject source,GameObject living)
         {
             if(!source || source.name!="Degu")return true;
-            using(DeguBindposeDiagnostics.Scope("Degu familiar preview renderer copy"))
-                return CopyDeguRenderers(__instance,source,living);
-        }
-        private static bool CopyDeguRenderers(object __instance,GameObject source,GameObject living)
-        {
             try
             {
                 var map=__instance.GetType().GetField("_transforms",InstancePrivate)
