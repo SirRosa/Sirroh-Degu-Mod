@@ -30,6 +30,7 @@ namespace SirrohDegu
             DeguWorld.InstallLocalizationHook(_patches);
             DeguWorld.Localize();
             DeguAppearanceService.Install();
+            DeguBindposeTrace.Install();
             DeguCompassIcon.Register(_patches);
             DeguFamiliarRepair.Install();
             DeguPreviewDiagnostics.Install();
@@ -42,6 +43,7 @@ namespace SirrohDegu
             DeguCompassIcon.Shutdown();
             DeguFamiliarRepair.Shutdown();
             DeguPreviewDiagnostics.Shutdown();
+            DeguBindposeTrace.Shutdown();
             if (_patches != null) _patches.UnpatchSelf();
             if (_prefabHolder != null) UnityEngine.Object.Destroy(_prefabHolder);
             _prefabHolder = null;
@@ -67,12 +69,20 @@ namespace SirrohDegu
         private static class DeguSpawnDiagnostic
         {
             // Diagnostic only: executed for all views, logging only Degu spawns.
+            [HarmonyPrefix]
+            private static void Prefix(ZNetView __instance)
+            {
+                DeguBindposeTrace.BeforeSpawn(__instance);
+            }
             [HarmonyPostfix]
             private static void Postfix(ZNetView __instance)
             {
                 if (__instance != null && __instance.gameObject != null &&
                     __instance.gameObject.name == "Degu(Clone)")
+                {
                     Log?.LogInfo("Degu(Clone): ZNetView.Awake executed (runtime spawn initialized).");
+                    DeguBindposeTrace.AfterSpawn(__instance);
+                }
             }
         }
 
@@ -241,6 +251,7 @@ namespace SirrohDegu
             }
 
             DeguAppearanceService.RegisterPrefab(_deguPrefab);
+            DeguBindposeTrace.AfterPrefab(_deguPrefab);
             Log?.LogInfo("Degu REGISTERED + VERIFIED: ZNetScene.GetPrefab('Degu') resolved; " +
                          "prefab activeSelf=" + _deguPrefab.activeSelf +
                          ", activeInHierarchy=" + _deguPrefab.activeInHierarchy +
