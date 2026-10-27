@@ -157,13 +157,18 @@ namespace SirrohDegu
                 DeguPlugin.Log?.LogWarning("DEGU_TRESURA: menu request blocked: local player, valid familiar or network unavailable; op="+opcode);
                 return false;
             }
+            if(player.m_nview==null || !player.m_nview.IsValid())
+            {
+                DeguPlugin.Log?.LogWarning("DEGU_TRESURA: native Player.m_nview unavailable; op="+opcode);
+                return false;
+            }
             try
             {
-                // Do not add an extra Player.GetComponent<ZNetView> condition:
-                // native TamingSkill.Send checks its own player.m_nview.
+                // Match the exact native Overhaul Player.m_nview condition.
                 // Redundant guards can silently suppress every menu click.
                 send.Invoke(null,new object[]{player,opcode,GetId(info),Vector3.zero,value});
-                DeguPlugin.Log?.LogInfo("DEGU_TRESURA: sent native request op="+opcode+" value="+value);
+                DeguPlugin.Log?.LogInfo("DEGU_TRESURA: sent native request op="+opcode+
+                    " value="+value+" target="+GetId(info));
                 return true;
             }
             catch(Exception e)
@@ -363,7 +368,7 @@ namespace SirrohDegu
             if(message!=lastState)
             {
                 lastState=message;
-                DeguPlugin.Log?.LogInfo("Degu Tresura UI 0.3.1: "+message);
+                DeguPlugin.Log?.LogInfo("DEGU_TRESURA: selected Degu UI "+message);
             }
         }
     }

@@ -45,7 +45,7 @@ namespace SirrohDegu
 
         internal static bool TryResolveMaterials()
         {
-            if(CanRender)return true;
+            if(CanRender && applyProperties!=null)return true;
             if(incompatible)return false;
             try
             {
@@ -300,13 +300,13 @@ namespace SirrohDegu
                     slots[1]=material;
                     skin.sharedMaterials=slots;
                 }
-                if(applyProperties!=null)
-                    applyProperties.Invoke(null,new object[]{skin,material,
-                        Mathf.Clamp(eye,0,6),Mathf.Clamp(element,0,5)});
-                else
+                if(applyProperties==null)
                 {
-                    WarnBridge("WolfVisuals.ApplyProperties missing: coat applied; eyes and emissive unconfirmed.");
+                    WarnBridge("WolfVisuals.ApplyProperties unavailable: coat applied, waiting for eye/emission binding.");
+                    return false; // retry eyes on next polling tick
                 }
+                applyProperties.Invoke(null,new object[]{skin,material,
+                    Mathf.Clamp(eye,0,6),Mathf.Clamp(element,0,5)});
                 var block=new MaterialPropertyBlock();
                 skin.GetPropertyBlock(block,0);
                 skin.SetPropertyBlock(block,1);
