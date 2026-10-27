@@ -116,7 +116,8 @@ for token in ("DeguBindposeTrace.Install();","DeguBindposeTrace.Shutdown();",
     assert token in plugin,token
 print("PASS read-only Unity bindpose incident correlation without hiding errors")
 
-assert 'skin.enabled=true;' in plugin
-assert 'skin.bones.Length!=skin.sharedMesh.bindposes.Length' in plugin
+assert 'visual.enabled=true;' in service
+assert 'yield return null;' in service
+assert 'visual.bones.Length!=visual.sharedMesh.bindposes.Length' in service
 assert 'skin.name!="SirrohDegu_StableVisual"' in preview
-print("PASS Degu renderer remains disabled during network prefab cloning, enabled after ZNetView initialization")
+print("PASS Degu renderer staged disabled and activated after all Unity Awake callbacks")
