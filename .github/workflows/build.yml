@@ -91,7 +91,7 @@ jobs:
           unzip -q /tmp/bepinex.zip -d /tmp/bepinex
           cp "$(find /tmp/bepinex -type f -name BepInEx.dll -print -quit)" .ci-deps/BepInEx.dll
           cp "$(find /tmp/bepinex -type f -name 0Harmony.dll -print -quit)" .ci-deps/0Harmony.dll
-          for f in assembly_valheim.dll assembly_utils.dll UnityEngine.CoreModule.dll UnityEngine.AnimationModule.dll UnityEngine.dll; do
+          for f in assembly_valheim.dll assembly_utils.dll UnityEngine.CoreModule.dll UnityEngine.AnimationModule.dll UnityEngine.AssetBundleModule.dll UnityEngine.dll; do
             cp "$RUNNER_TEMP/valheim/valheim_server_Data/Managed/$f" ".ci-deps/$f"
           done
       - name: Verify isolated v0.4.0 module boundaries, original model and Plains spawn contracts
