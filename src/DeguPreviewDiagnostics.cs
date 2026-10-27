@@ -95,20 +95,37 @@ namespace SirrohDegu
                     }
                     var skin=from.GetComponent<SkinnedMeshRenderer>();
                     if(!skin || !skin.enabled || !skin.sharedMesh)continue;
-                    var result=into.gameObject.AddComponent<SkinnedMeshRenderer>();
+                    // Validate the entire binding BEFORE creating a component.
+                    // Never substitute another transform for a missing bone:
+                    // that produced visible limb and preview deformation.
                     Transform[] original=skin.bones;
-                    var bones=new Transform[original.Length];
-                    for(int i=0;i<bones.Length;i++)
-                        bones[i]=original[i] && map.TryGetValue(original[i],out Transform found)?found:into;
-                    if(skin.sharedMesh.bindposes.Length!=bones.Length)
+                    int bindCount=skin.sharedMesh.bindposes.Length;
+                    if(original==null || original.Length==0 || bindCount!=original.Length)
                     {
-                        DeguPlugin.Log?.LogWarning("Degu preview skipped inconsistent mesh: bindposes="+
-                            skin.sharedMesh.bindposes.Length+", bones="+bones.Length);
-                        UnityEngine.Object.Destroy(result);
+                        DeguPlugin.Log?.LogWarning("Degu preview invalid source: renderer="+
+                            skin.name+" bindposes="+bindCount+
+                            " bones="+(original==null?0:original.Length));
                         continue;
                     }
+                    var bones=new Transform[original.Length];
+                    bool valid=true;
+                    for(int i=0;i<bones.Length;i++)
+                    {
+                        if(!original[i] || !map.TryGetValue(original[i],out bones[i]) || !bones[i])
+                        {valid=false;break;}
+                    }
+                    if(!valid || !skin.rootBone || !map.TryGetValue(skin.rootBone,out Transform root) || !root)
+                    {
+                        DeguPlugin.Log?.LogWarning("Degu preview skipped unmapped skeleton: "+skin.name);
+                        continue;
+                    }
+                    // Unity renderer initialization must not observe a mesh
+                    // with zero assigned bones. The root and 34 mapped bones
+                    // are ready before the shared mesh is assigned.
+                    var result=into.gameObject.AddComponent<SkinnedMeshRenderer>();
+                    result.enabled=false;
                     result.bones=bones;
-                    result.rootBone=skin.rootBone && map.TryGetValue(skin.rootBone,out Transform root)?root:into;
+                    result.rootBone=root;
                     result.sharedMesh=skin.sharedMesh;
                     var live=Matching(from,source.transform,living?living.transform:null);
                     result.sharedMaterials=live && live.sharedMaterials.Length==skin.sharedMaterials.Length
@@ -116,6 +133,7 @@ namespace SirrohDegu
                     result.localBounds=skin.localBounds;
                     result.updateWhenOffscreen=true;
                     result.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+                    result.enabled=true;
                 }
             }
             catch(Exception e)
