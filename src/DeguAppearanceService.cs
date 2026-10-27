@@ -31,6 +31,8 @@ namespace SirrohDegu
         internal static bool CanRender {get;private set;}
 
         private static string lastFailure;
+        private static readonly System.Collections.Generic.HashSet<string> reportedFailures=
+            new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
         private static bool incompatible;
 
         // Some BepInEx load configurations populate PluginInfos later than
@@ -109,7 +111,10 @@ namespace SirrohDegu
         {
             if(lastFailure==reason)return;
             lastFailure=reason;
-            DeguPlugin.Log?.LogWarning("DEGU_APPEARANCE bridge: "+reason);
+            // Spawn groups can contain 3–7 Degu, and an incomplete material
+            // bundle must never produce repeated warnings every second.
+            if(reportedFailures.Count<64 && reportedFailures.Add(reason))
+                DeguPlugin.Log?.LogWarning("DEGU_APPEARANCE bridge: "+reason);
         }
 
         internal static void RegisterPrefab(GameObject prefab)
