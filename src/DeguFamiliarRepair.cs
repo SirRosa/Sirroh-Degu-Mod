@@ -151,8 +151,9 @@ namespace SirrohDegu
         private static bool SendRequest(object info,int opcode,int value)
         {
             Player player=Player.m_localPlayer;
+            ZNetView playerView=player?player.GetComponent<ZNetView>():null;
             if(!player || !EnsureLiving(info) || GetId(info)==ZDOID.None ||
-                player.m_nview==null || !player.m_nview.IsValid() ||
+                !playerView || !playerView.IsValid() ||
                 ZRoutedRpc.instance==null || send==null)
             {
                 DeguPlugin.Log?.LogWarning("Degu Tresura: request NOT submitted op="+opcode);
