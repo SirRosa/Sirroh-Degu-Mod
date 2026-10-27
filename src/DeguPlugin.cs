@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace SirrohDegu
 {
-    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.2.5")]
+    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.4.0")]
     [BepInDependency("sirro.valheim.pracafizyczna", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class DeguPlugin : BaseUnityPlugin
     {
@@ -29,17 +29,21 @@ namespace SirrohDegu
             _patches.PatchAll(typeof(DeguPlugin).Assembly);
             DeguWorld.InstallLocalizationHook(_patches);
             DeguWorld.Localize();
-            OverhaulCompatibility.Install();
+            // Rebuilt palette initializes lazily from native Wolf materials.
+            // No global ZNetView patches or per-spawn bindpose diagnostic spam.
             DeguCompassIcon.Register(_patches);
-            DeguFamiliarRepair.Install();
-            Logger.LogInfo("Sirroh Degu v0.2.5 loaded. Waiting for ZNetScene prefab registry.");
+            DeguFamiliarBridge.Install();
+            DeguPreviewBridge.Install();
+            Logger.LogInfo("Sirroh Degu v0.4.0 loaded. Waiting for ZNetScene prefab registry.");
         }
 
         private void OnDestroy()
         {
-            OverhaulCompatibility.Shutdown();
+            // Appearance service owns no Harmony patches.
             DeguCompassIcon.Shutdown();
-            DeguFamiliarRepair.Shutdown();
+            DeguFamiliarBridge.Shutdown();
+            DeguPreviewBridge.Shutdown();
+            DeguWolfPalette.Shutdown();
             if (_patches != null) _patches.UnpatchSelf();
             if (_prefabHolder != null) UnityEngine.Object.Destroy(_prefabHolder);
             _prefabHolder = null;
@@ -56,21 +60,16 @@ namespace SirrohDegu
             [HarmonyPostfix]
             private static void Postfix(ZNetScene __instance)
             {
-                try { Register(__instance); }
+                try
+                {
+                    // Retry optional integrations only after Overhaul and the
+                    // game's prefab registries have completed initialization.
+                    // Wolf palette resolves independently as game assets load.
+                    DeguFamiliarBridge.Install();
+                    DeguPreviewBridge.Install();
+                    Register(__instance);
+                }
                 catch (Exception ex) { Log?.LogError("Degu prefab registration FAILED: " + ex); }
-            }
-        }
-
-        [HarmonyPatch(typeof(ZNetView), "Awake")]
-        private static class DeguSpawnDiagnostic
-        {
-            // Diagnostic only: executed for all views, logging only Degu spawns.
-            [HarmonyPostfix]
-            private static void Postfix(ZNetView __instance)
-            {
-                if (__instance != null && __instance.gameObject != null &&
-                    __instance.gameObject.name == "Degu(Clone)")
-                    Log?.LogInfo("Degu(Clone): ZNetView.Awake executed (runtime spawn initialized).");
             }
         }
 
@@ -139,7 +138,8 @@ namespace SirrohDegu
             {
                 if (existing != null && existing.name == "Degu")
                 {
-                    OverhaulCompatibility.AfterDeguRegistered(existing);
+                    // Wolf palette resolves independently as game assets load.
+                    DeguWolfPalette.Register(existing);
                     Log?.LogInfo("Degu already exists in ZNetScene.GetPrefab; no duplicate.");
                     return;
                 }
@@ -238,7 +238,9 @@ namespace SirrohDegu
                 throw new InvalidOperationException("ZNetScene.GetPrefab('Degu') failed after registration.");
             }
 
-            OverhaulCompatibility.AfterDeguRegistered(_deguPrefab);
+            // Wolf palette resolves independently as game assets load.
+            DeguWolfPalette.Register(_deguPrefab);
+            // Final Degu renderer is staged disabled until clone Start.
             Log?.LogInfo("Degu REGISTERED + VERIFIED: ZNetScene.GetPrefab('Degu') resolved; " +
                          "prefab activeSelf=" + _deguPrefab.activeSelf +
                          ", activeInHierarchy=" + _deguPrefab.activeInHierarchy +
