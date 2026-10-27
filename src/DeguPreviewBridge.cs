@@ -125,8 +125,7 @@ namespace SirrohDegu
             if(prefab!="Degu" || __instance==null)return;
             try
             {
-                GameObject visual=type.GetField("_visual",PrivateInstance)?
-                    .GetValue(__instance) as GameObject;
+                GameObject visual=type.GetField("_visual",PrivateInstance)?.GetValue(__instance) as GameObject;
                 if(!visual)return;
                 ZDO zdo=ZDOMan.instance?.GetZDO(petId);
                 int level=zdo==null?1:zdo.GetInt(DeguWolfPalette.LevelKey,1);
