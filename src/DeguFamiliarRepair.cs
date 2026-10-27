@@ -26,7 +26,7 @@ namespace SirrohDegu
 
         private static Harmony harmony;
         private static MethodInfo selected, send, eyeName;
-        private static FieldInfo pending, dirty, details;
+        private static FieldInfo pending, dirty, details, familiars;
         private static readonly FieldInfo PlayerNetworkView=AccessTools.Field(typeof(Character),"m_nview");
         private static FieldInfo furPrev, furNext, eyePrev, eyeNext, namePrev, nameNext, rune;
         private static Type infoType;
@@ -80,6 +80,7 @@ namespace SirrohDegu
                 selected=AccessTools.Method(panel,"Selected");
                 send=AccessTools.Method(taming,"Send");
                 pending=AccessTools.Field(taming,"Pending");
+                familiars=AccessTools.Field(taming,"Familiars");
                 dirty=AccessTools.Field(taming,"_dirtyRecords");
                 details=AccessTools.Field(taming,"Details");
                 furPrev=AccessTools.Field(panel,"_left");
@@ -89,7 +90,7 @@ namespace SirrohDegu
                 namePrev=AccessTools.Field(panel,"_fontLeft");
                 nameNext=AccessTools.Field(panel,"_fontRight");
                 rune=AccessTools.Field(panel,"_runesToggle");
-                if(selected==null || send==null || eyeName==null || pending==null || dirty==null ||
+                if(selected==null || send==null || eyeName==null || pending==null || familiars==null || dirty==null ||
                    details==null || furPrev==null || furNext==null ||
                    eyePrev==null || eyeNext==null || namePrev==null ||
                    nameNext==null || rune==null)
@@ -106,6 +107,8 @@ namespace SirrohDegu
                 Patch(taming,"ToggleElementRunes",nameof(ToggleRunes),true,false);
                 Patch(taming,"HandleLifecycleRequest",nameof(ServerRequest),true,false);
                 Patch(taming,"Capture",nameof(AfterCapture),false,true);
+                Patch(taming,"OnStatus",nameof(BeforeStatus),true,false);
+                Patch(taming,"OnAdoptReply",nameof(AfterAdopt),false,true);
                 Patch(panel,"UpdateDetail",nameof(AfterDetail),false,true);
                 lastFailure=null;
                 DeguPlugin.Log?.LogInfo(
@@ -281,6 +284,69 @@ namespace SirrohDegu
             Set(info,"Skin",Mathf.Clamp(zdo.GetInt(SkinKey,0),0,6));
             Set(info,"NameColor",Mathf.Clamp(zdo.GetInt(NameColorKey,1),0,15));
         }
+        // Overhaul 0.22.65 may discard a roster slot when its FamiliarInfo
+        // record has no species and the pet was not in the currently loaded
+        // scene when OnAdoptReply called Capture. Preserve the identity of an
+        // EXISTING owned Degu ZDO before that orphan cleanup runs.
+        private static bool HydrateExistingOwnedDegu(ZDOID id)
+        {
+            if(id==ZDOID.None || Player.m_localPlayer==null ||
+                ZDOMan.instance==null || ZNetScene.instance==null)return false;
+            var ids=familiars?.GetValue(null) as List<ZDOID>;
+            var records=details?.GetValue(null) as IDictionary;
+            if(ids==null || !ids.Contains(id) || records==null)return false;
+            ZDO pet=ZDOMan.instance.GetZDO(id);
+            if(pet==null || pet.GetLong(OwnerKey,0L)!=Player.m_localPlayer.GetPlayerID())
+                return false;
+            GameObject prefab=ZNetScene.instance.GetPrefab(pet.GetPrefab());
+            if(!prefab || prefab.name!="Degu")return false;
+            object info=records.Contains(id)?records[id]:null;
+            if(info==null)
+            {
+                info=Activator.CreateInstance(infoType,true);
+                Set(info,"Id",id);
+                records[id]=info;
+            }
+            if(IsDegu(info))return false; // already identified; preserve details
+            string current=Get(info,"Prefab") as string;
+            if(!string.IsNullOrEmpty(current))return false; // never overwrite another species
+            Set(info,"Prefab","Degu");
+            Set(info,"Skin",Mathf.Clamp(pet.GetInt(SkinKey,0),0,6));
+            Set(info,"EyeColor",Mathf.Clamp(pet.GetInt(EyeKey,0),0,6));
+            Set(info,"ShowRunes",pet.GetBool(RunesKey,true));
+            Set(info,"NameColor",Mathf.Clamp(pet.GetInt(NameColorKey,1),0,15));
+            Set(info,"PetLevel",Mathf.Clamp(pet.GetInt(PetLevelKey,1),1,100));
+            Dirty();
+            DeguPlugin.Log?.LogInfo("DEGU_TRESURA: recovered existing owned Degu identity, id="+id+
+                ", skin="+GetInt(info,"Skin")+" (no new pet or roster entry created).");
+            return true;
+        }
+        private static void BeforeStatus(long sender)
+        {
+            if(ZRoutedRpc.instance==null ||
+                sender!=ZRoutedRpc.instance.GetServerPeerID())return;
+            var ids=familiars?.GetValue(null) as List<ZDOID>;
+            if(ids==null)return;
+            // Iterate snapshot; no mutation of the native roster itself.
+            foreach(ZDOID id in ids.ToArray())
+                HydrateExistingOwnedDegu(id);
+        }
+        private static void AfterAdopt(long sender,ZPackage pkg)
+        {
+            if(ZRoutedRpc.instance==null || pkg==null ||
+                sender!=ZRoutedRpc.instance.GetServerPeerID())return;
+            try
+            {
+                ZDOID id=new ZPackage(pkg.GetArray()).ReadZDOID();
+                HydrateExistingOwnedDegu(id);
+            }
+            catch(Exception ex)
+            {
+                DeguPlugin.Log?.LogWarning("DEGU_TRESURA: adoption status hydration failed: "+
+                    ex.GetBaseException().Message);
+            }
+        }
+
         // The Degu project intentionally does not reference UnityEngine.UI.dll.
         // Set this existing Overhaul UI property by reflection instead.
         private static void Interactable(FieldInfo f,bool enabled)
