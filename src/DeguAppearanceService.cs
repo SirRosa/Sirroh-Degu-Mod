@@ -339,6 +339,22 @@ namespace SirrohDegu
             }
         }
 
+        // Material assignments by other mods can overwrite Degu between ZDO
+        // changes. Detect that explicitly; do NOT spam material writes each
+        // frame. No mutation occurs in this check.
+        internal static bool MaterialMatches(GameObject obj,int coat)
+        {
+            if(coat<0 || coat>=7 || selectedWolfMaterials==null ||
+               selectedWolfMaterials.Length!=7 || !selectedWolfMaterials[coat])
+                return false;
+            var skin=Visible(obj);
+            if(!skin)return false;
+            var actual=skin.sharedMaterials;
+            return actual!=null && actual.Length>=2 &&
+                actual[0]==selectedWolfMaterials[coat] &&
+                actual[1]==selectedWolfMaterials[coat];
+        }
+
         internal static int Element(ZDO zdo)
         {
             if(zdo==null || !zdo.GetBool(RunesKey,true) || zdo.GetInt(LevelKey,1)<25)
@@ -403,6 +419,8 @@ namespace SirrohDegu
                 zdo.Set(DeguAppearanceService.EyeKey,UnityEngine.Random.Range(1,7));
             int appliedSkin=-1,appliedEye=-1,appliedElement=-1;
             bool applied=false,notified=false;
+            float nextMaterialProbe=0f;
+            bool reportedMaterialReset=false;
             while(view && view.IsValid() && gameObject)
             {
                 zdo=view.GetZDO();
@@ -412,8 +430,19 @@ namespace SirrohDegu
                 int element=DeguAppearanceService.Element(zdo);
                 bool ready=zdo.GetBool(DeguAppearanceService.ActiveKey,false) &&
                     coat>=0 && coat<7 && eye>=1 && eye<=6;
+                bool overridden=false;
+                if(ready && applied && Time.unscaledTime>=nextMaterialProbe)
+                {
+                    nextMaterialProbe=Time.unscaledTime+3f;
+                    overridden=!DeguAppearanceService.MaterialMatches(gameObject,coat);
+                    if(overridden && !reportedMaterialReset)
+                    {
+                        reportedMaterialReset=true;
+                        DeguPlugin.Log?.LogWarning("DEGU_APPEARANCE: Degu material changed externally after applying Wolf coat; restoring native variant, id="+zdo.m_uid);
+                    }
+                }
                 if(ready && (!applied || coat!=appliedSkin ||
-                    eye!=appliedEye || element!=appliedElement))
+                    eye!=appliedEye || element!=appliedElement || overridden))
                 {
                     if(DeguAppearanceService.ApplyVisual(gameObject,coat,eye,element))
                     {
