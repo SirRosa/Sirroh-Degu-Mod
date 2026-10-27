@@ -143,7 +143,7 @@ jobs:
           git add -f "release/SirrohDegu-${VERSION}.zip" "release/SirRosa-SirrohDegu-${VERSION}.zip" \
             release/SirrohDegu/SirrohDegu.dll release/SirrohDegu/manifest.json \
             release/SirrohDegu/README.md release/SirrohDegu/icon.png \
-            release/Degu_Blender_QA.json \
+            release/Degu_Wolf_Reweighted_v0.1.11.blend release/Degu_Blender_QA.json \
             release/Degu_Skinning_QA.json release/Degu_Blender_Build.log \
             release/Degu_Wolf_UV_QA.json release/Degu_Wolf_UV_Overlay.png \
             release/Degu_User_FaceSets_QA.json

@@ -122,61 +122,18 @@ namespace SirrohDegu
         private static void SkinName(object info,ref string __result)
         {if(IsDegu(info))__result=FurNames[Mathf.Clamp(GetInt(info,"Skin"),0,6)];}
 
-        // A stale client record is recovered ONLY when the precise tame,
-        // living actor and its authoritative ZDO belong to the local player.
-        private static bool IsConfirmedLiving(object info)
-        {
-            if(!IsDegu(info))return false;
-            ZDOID id=GetId(info);
-            Player player=Player.m_localPlayer;
-            if(id==ZDOID.None || !player || ZNetScene.instance==null)return false;
-            GameObject go=ZNetScene.instance.FindInstance(id);
-            Character actor=go?go.GetComponent<Character>():null;
-            ZNetView view=go?go.GetComponent<ZNetView>():null;
-            if(!actor || !actor.IsTamed() || !view || !view.IsValid())return false;
-            ZDO zdo=view.GetZDO();
-            return zdo!=null && zdo.m_uid==id &&
-                zdo.GetLong(OwnerKey,0L)==player.GetPlayerID();
-        }
-        private static bool EnsureLiving(object info)
-        {
-            if(Alive(info))return true;
-            if(!IsConfirmedLiving(info))return false;
-            Set(info,"Alive",true);
-            Dirty();
-            DeguPlugin.Log?.LogInfo("Degu Tresura: recovered stale Alive from exact owned ZDO.");
-            return true;
-        }
-        // Request submission is not a server acknowledgement.
-        private static bool SendRequest(object info,int opcode,int value)
+        private static void SendRequest(object info,int opcode,int value)
         {
             Player player=Player.m_localPlayer;
-            ZNetView playerView=player?player.GetComponent<ZNetView>():null;
-            if(!player || !EnsureLiving(info) || GetId(info)==ZDOID.None ||
-                !playerView || !playerView.IsValid() ||
-                ZRoutedRpc.instance==null || send==null)
-            {
-                DeguPlugin.Log?.LogWarning("Degu Tresura: request NOT submitted op="+opcode);
-                return false;
-            }
-            try
-            {
-                send.Invoke(null,new object[]{player,opcode,GetId(info),Vector3.zero,value});
-                return true;
-            }
-            catch(Exception ex)
-            {
-                DeguPlugin.Log?.LogError("Degu Tresura: request exception op="+opcode+
-                    ": "+ex.GetBaseException());
-                return false;
-            }
+            if(!player || !Alive(info) || GetId(info)==ZDOID.None) return;
+            send.Invoke(null,new object[]{player,opcode,GetId(info),Vector3.zero,value});
         }
         private static bool ChooseSkin(object info,int direction)
         {
             if(!IsDegu(info))return true;
-            if(!EnsureLiving(info))return false;
+            if(!Alive(info))return false;
             int next=(GetInt(info,"Skin")+direction+7)%7;
-            if(!SendRequest(info,10,next))return false;
+            SendRequest(info,10,next);
             Set(info,"Skin",next);
             Dirty();
             return false;
@@ -184,10 +141,10 @@ namespace SirrohDegu
         private static bool ChooseEyes(object info,int direction)
         {
             if(!IsDegu(info))return true;
-            if(!EnsureLiving(info))return false;
+            if(!Alive(info))return false;
             int current=Mathf.Clamp(GetInt(info,"EyeColor",1),1,6);
             int next=1+(current-1+direction+6)%6;
-            if(!SendRequest(info,18,next))return false;
+            SendRequest(info,18,next);
             Set(info,"EyeColor",next);
             Dirty();
             return false;
@@ -195,9 +152,9 @@ namespace SirrohDegu
         private static bool ChooseName(object familiar,int direction)
         {
             if(!IsDegu(familiar))return true;
-            if(!EnsureLiving(familiar))return false;
+            if(!Alive(familiar))return false;
             int next=(GetInt(familiar,"NameColor",1)+direction+16)%16;
-            if(!SendRequest(familiar,11,next))return false;
+            SendRequest(familiar,11,next);
             Set(familiar,"NameColor",next);
             Dirty();
             return false;
@@ -205,9 +162,9 @@ namespace SirrohDegu
         private static bool ToggleRunes(object info)
         {
             if(!IsDegu(info))return true;
-            if(!EnsureLiving(info) || GetInt(info,"PetLevel",1)<25)return false;
+            if(!Alive(info) || GetInt(info,"PetLevel",1)<25)return false;
             bool previous=Get(info,"ShowRunes") is bool b && b;
-            if(!SendRequest(info,17,previous?0:1))return false;
+            SendRequest(info,17,previous?0:1);
             Set(info,"ShowRunes",!previous);
             Dirty();
             return false;
@@ -304,9 +261,22 @@ namespace SirrohDegu
             object info=Selection();
             if(!IsSelectedDegu(info))return;
             bool alive=Alive(info);
-            // The same identity check is shared with the button RPC path.
-            // Do not allow an unowned or destroyed Degu to be edited.
-            if(!alive)alive=EnsureLiving(info);
+            // Only change the six Degu controls; never touch Wolf or other
+            // familiars. If Alive is stale, validate the actual owned ZDO.
+            if(!alive && Player.m_localPlayer && ZNetScene.instance)
+            {
+                GameObject go=ZNetScene.instance.FindInstance(GetId(info));
+                ZNetView view=go ? go.GetComponent<ZNetView>():null;
+                Character actor=go ? go.GetComponent<Character>():null;
+                ZDO z=view && view.IsValid()?view.GetZDO():null;
+                if(actor && actor.IsTamed() && z!=null &&
+                   z.GetLong(OwnerKey,0L)==Player.m_localPlayer.GetPlayerID() &&
+                   z.m_uid==GetId(info))
+                {
+                    Set(info,"Alive",true);
+                    alive=true;
+                }
+            }
             Label("_furName",FurNames[Mathf.Clamp(GetInt(info,"Skin"),0,6)]);
             int eye=Mathf.Clamp(GetInt(info,"EyeColor",0),0,6);
             string eyeText=eyeName.Invoke(null,new object[]{eye}) as string;
