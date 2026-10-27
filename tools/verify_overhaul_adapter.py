@@ -1,4 +1,4 @@
-"""Regression contracts for Degu 0.3.2 independent appearance pipeline.
+"""Regression contracts for Degu 0.3.3 independent appearance pipeline.
 
 Static checks cannot replace Valheim runtime, but catch accidental coupling
 between wild randomization, Overhaul menu patches and prefab construction.
@@ -72,9 +72,15 @@ for dangerous in ['new Material(', 'gameObject.AddComponent<Character>', 'new ZN
     assert dangerous not in service,dangerous
 assert 'if(!TryResolveMaterials())return false;' in service
 assert 'AccessTools.TypeByName("Sirro.PracaFizyczna.MaterialCatalog")' in service
-assert 'var coats=all==null?null:all["Wolf"] as Array;' in service
-assert 'assign.Invoke(null,new object[]{skin,0,material,true});' in service
-assert 'assign.Invoke(null,new object[]{skin,1,material,true});' in service
+assert 'dict.Contains("Wolf")' in service
+assert 'return false;' in service
+assert 'skins.Length!=7' in service
+assert 'selectedWolfMaterials[coat]' in service
+assert 'selectedAssign.Invoke(null,new object[]{skin,0,material,true});' in service
+assert 'selectedAssign.Invoke(null,new object[]{skin,1,material,true});' in service
+assert 'standalone?.Instance!=null' in service
+assert 'if(applyProperties==null)TryResolveMaterials();' in service
+assert 'eyeTex=state.GetTexture("_MainTex")' in service
 assert 'nextCatalogRetry=Time.unscaledTime+5f;' in service
 assert 'material_adapter="+DeguAppearanceService.CanRender' in service
 assert 'DeguFamiliarRepair.Install();' in plugin
@@ -110,9 +116,9 @@ assert '<EmbeddedResource Include="Assets/Icons/Degu.png" LogicalName="SirrohDeg
 print("PASS original Degu compass icon unchanged")
 
 manifest=Path("manifest.json").read_text()
-assert '"version_number": "0.3.2"' in manifest
-assert '"0.3.2"' in plugin
-print("PASS 0.3.2 source, manifest and reproducibility contracts")
+assert '"version_number": "0.3.3"' in manifest
+assert '"0.3.3"' in plugin
+print("PASS 0.3.3 source, manifest and reproducibility contracts")
 
 trace=Path("src/DeguBindposeTrace.cs").read_text()
 for token in ("OnUnityLog(", "BeforeSpawn(", "AfterSpawn(", "AfterPrefab(",
@@ -131,3 +137,9 @@ assert 'yield return null;' in service
 assert 'visual.bones.Length!=visual.sharedMesh.bindposes.Length' in service
 assert 'skin.name!="SirrohDegu_StableVisual"' in preview
 print("PASS Degu renderer staged disabled and activated after all Unity Awake callbacks")
+
+# Version ledger must explicitly distinguish expected changes from runtime success.
+ledger=Path("update.md").read_text()
+assert "0.3.3" in ledger and "NIEPOTWIERDZONE" in ledger
+assert "Wolf" in ledger and "Tresura" in ledger
+print("PASS source-code audit and version-by-version update.md ledger")

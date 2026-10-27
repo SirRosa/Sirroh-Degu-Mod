@@ -39,3 +39,10 @@ Stan: audyt wykonany, implementacja 0.3.3 w toku; brak potwierdzenia runtime; ni
 ## Zasada kolejnych wpisów
 
 Każdy kolejny commit zmiany: dopisać do update.md datę/wersję, zmodyfikowane pliki, cel, ryzyko, wynik CI, wynik testu gry (PASS/FAIL/NIEPRZETESTOWANE), konkretne regresje.
+
+## 0.3.3 — konkretne zmiany (kandydat; stan Valheim NIEPOTWIERDZONE)
+- **Przyczyna / diagnoza:** log 0.3.1 dowiódł poprawnych losowych indeksów ZDO i material_adapter=False. Dla 0.3.2 brak kompletnych logów po starcie, więc faktyczna awaria katalogu Wolf na komputerze użytkownika pozostaje NIEPOTWIERDZONA. Niezależny Fur Randomizer może mieć 7 materiałów w innej DLL; Overhaul w takim trybie celowo nie ładuje własnego bundle. Kod 0.3.2 czytał wyłącznie Overhaul.Variants.
+- **Zmienione pliki:** src/DeguAppearanceService.cs (dwustopniowe wykrywanie MaterialCatalog z Overhaul oraz standalone sirroh.furrandomizer; potwierdzenie wszystkich siedmiu prawdziwych Wolf Material.Main, użycie natywnego Assign oraz WolfVisuals.ApplyProperties, nieulotne ponawianie źródła i oczu, diagnostyka materiału/albedo/eyeAtlas), src/DeguFamiliarRepair.cs (sprawdzenie dokładnie Player.m_nview i zapis RPC), manifest.json/src/DeguPlugin.cs/README.md/CI/test kontraktów (0.3.3), update.md.
+- **Zamierzony wynik:** rzeczywiste 7 materiałów wilka i 6 oczu na żywym Degu, aktualizacja po zmianie ZDO i menu Tresury, emissive od poziomu 25, brak regresji modelu/AI/spawnu.
+- **Ograniczenia:** nie przeprowadzono klientowego testu Valheim. Żaden punkt gameplay nie jest oznaczony PASS; logi modelu 0.3.1 pokazały 34/34 i brak bindpose w tamtym uruchomieniu. Nie modyfikowano DeguWorld, DeguMesh, DeguRigDriver, materiałów Overhaul, animacji, UV.
+- **Weryfikacja:** GitHub Actions CI i ZIP: W TRAKCIE, aktualizować po wyniku. Wartość runtime: NIEPOTWIERDZONE. W logu pierwszego spawnu oczekiwać 'Wolf coats READY' i 'DEGU_APPEARANCE: APPLIED ... material=... atlas=... eyeAtlas=...'; w Tresurze 'DEGU_TRESURA: ... ACTIVE', 'sent native request', 'saved appearance'.
