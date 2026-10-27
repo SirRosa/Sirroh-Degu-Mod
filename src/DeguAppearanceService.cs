@@ -218,7 +218,6 @@ namespace SirrohDegu
                !Chainloader.PluginInfos.ContainsKey("sirroh.furrandomizer"))
                 return false;
             selectedWolfMaterials=null;
-            selectedCatalog=null;
             selectedAssign=null;
 
             var candidates=new System.Collections.Generic.List<Type>(2);

@@ -27,6 +27,7 @@ namespace SirrohDegu
         private static Harmony harmony;
         private static MethodInfo selected, send, eyeName;
         private static FieldInfo pending, dirty, details;
+        private static readonly FieldInfo PlayerNetworkView=AccessTools.Field(typeof(Character),"m_nview");
         private static FieldInfo furPrev, furNext, eyePrev, eyeNext, namePrev, nameNext, rune;
         private static Type infoType;
         private static string lastState;
@@ -157,7 +158,8 @@ namespace SirrohDegu
                 DeguPlugin.Log?.LogWarning("DEGU_TRESURA: menu request blocked: local player, valid familiar or network unavailable; op="+opcode);
                 return false;
             }
-            if(player.m_nview==null || !player.m_nview.IsValid())
+            ZNetView ownView=PlayerNetworkView?.GetValue(player) as ZNetView;
+            if(!ownView || !ownView.IsValid())
             {
                 DeguPlugin.Log?.LogWarning("DEGU_TRESURA: native Player.m_nview unavailable; op="+opcode);
                 return false;
