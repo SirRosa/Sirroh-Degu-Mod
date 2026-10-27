@@ -12,9 +12,9 @@ spawn Degu
 
 ## Instalacja
 
-**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.2.5.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
+**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.3.1.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
 
-**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.2.5.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
+**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.3.1.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
 
 Model pochodzi z `Degu.blend` i zawiera wagi dla 34 kości kompatybilnych nazwami z oryginalnym wilkiem. Żaden skrypt odpowiedzialny za zachowanie wilka nie jest zastępowany.
 
@@ -180,6 +180,13 @@ Usunięto odwołanie do nieistniejącego `SpawnData.m_requiredNotGlobalKey`. Pod
 Oryginalna, przesłana przez użytkownika ikona PNG 96×96 RGBA jest osadzona w istniejącej `SirrohDegu.dll` jako zasób `SirrohDegu.Creatures.Degu.png`. Oddzielny, opcjonalny Harmony postfix uzupełnia `CreatureIconLibrary.ForPrefab("Degu")` wyłącznie wtedy, gdy Overhaul nie dostarczył własnej ikony. Dzięki temu ta sama ikona trafia do kompasu Tresury oraz listy chowańców, bez modyfikowania repo Overhaul i bez tworzenia dodatkowej DLL. Poprawki z wersji 0.2.3 nie były zmieniane.
 
 
-## v0.2.5 — naprawa Tresury Degu
+## v0.3.1 — naprawa Tresury Degu
 
 Niezależny, ograniczony do Sirroh Overhaul 0.22.65 adapter obsługuje wszystkie poziomy zmiany wyglądu Koszatniczki: 7 skór, 6 kolorów oczu, 16 kolorów imienia i runy od poziomu 25. Ustawienia w menu są odblokowywane dla żywych Degu, klient wysyła oryginalne żądania Tresury, a serwer weryfikuje tożsamość, przynależność chowańca do zatwierdzonej listy i zakresy wartości przed zapisem ZDO. Żywe Degu odświeżają materiały wyłącznie po zmianie danych wyglądu. Kod Overhaul nie jest modyfikowany. Działanie runtime musi zostać sprawdzone w grze.
+
+
+## Architektura 0.3.1 (kandydat — niepotwierdzony w grze)
+
+Dzikie Degu mają własny zapis wyglądu do ZDO, niezależny od instalacji patchy Tresury. Wyświetlenie wariantów wymaga materiałów wilka z Sirroh Overhaul 0.22.65. Brak materiałów nie kasuje wylosowanych indeksów.
+
+Test w Valheim 1.0 / Deep North, lokalnie i host–klient, jest obowiązkowy przed wydaniem końcowym. Wynik GitHub Actions oznacza kompilację, nie potwierdzenie działania. Nie instaluj równocześnie dwóch DLL Degu.
