@@ -165,4 +165,7 @@ assert 'ids.Add(zdo.m_uid);' in menu
 assert 'saveNative.Invoke(null,new object[]{player});' in menu
 assert 'template.name!="Degu"' in menu
 assert 'material.shader=' not in service
+assert 'internal static bool MaterialMatches(GameObject obj,int coat)' in service
+assert 'overridden=!DeguAppearanceService.MaterialMatches(gameObject,coat);' in service
+assert 'nextMaterialProbe=Time.unscaledTime+3f;' in service
 print("PASS native adoption/status hook API, owner-gated recovery, no shared Wolf material mutation")
