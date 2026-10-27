@@ -60,7 +60,15 @@ namespace SirrohDegu
             [HarmonyPostfix]
             private static void Postfix(ZNetScene __instance)
             {
-                try { Register(__instance); }
+                try
+                {
+                    // Retry optional integrations only after Overhaul and the
+                    // game's prefab registries have completed initialization.
+                    DeguAppearanceService.TryResolveMaterials();
+                    DeguFamiliarRepair.Install();
+                    DeguPreviewDiagnostics.Install();
+                    Register(__instance);
+                }
                 catch (Exception ex) { Log?.LogError("Degu prefab registration FAILED: " + ex); }
             }
         }
@@ -153,6 +161,7 @@ namespace SirrohDegu
             {
                 if (existing != null && existing.name == "Degu")
                 {
+                    DeguAppearanceService.TryResolveMaterials();
                     DeguAppearanceService.RegisterPrefab(existing);
                     Log?.LogInfo("Degu already exists in ZNetScene.GetPrefab; no duplicate.");
                     return;
@@ -252,6 +261,7 @@ namespace SirrohDegu
                 throw new InvalidOperationException("ZNetScene.GetPrefab('Degu') failed after registration.");
             }
 
+            DeguAppearanceService.TryResolveMaterials();
             DeguAppearanceService.RegisterPrefab(_deguPrefab);
             DeguBindposeTrace.AfterPrefab(_deguPrefab);
             Log?.LogInfo("Degu REGISTERED + VERIFIED: ZNetScene.GetPrefab('Degu') resolved; " +
