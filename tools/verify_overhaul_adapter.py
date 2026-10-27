@@ -78,7 +78,10 @@ assert 'prefab.GetComponentsInChildren<Behaviour>(true)' in service
 assert 'AccessTools.TypeByName("Sirro.PracaFizyczna.MaterialCatalog")' in service
 assert 'dict.Contains("Wolf")' in service
 assert 'return false;' in service
-assert 'skins.Length!=7' in service
+assert 'ordered.Length!=7' in service
+assert 'string[] order={"Default","Albino","Black","DarkBrown",' in service
+assert '"Grey","Blood","Midnight"};' in service
+assert 'IDictionary named=wolves as IDictionary;' in service
 assert 'selectedWolfMaterials[coat]' in service
 assert 'selectedAssign.Invoke(null,new object[]{skin,0,material,true});' in service
 assert 'selectedAssign.Invoke(null,new object[]{skin,1,material,true});' in service
