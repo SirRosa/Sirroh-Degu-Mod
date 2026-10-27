@@ -26,7 +26,6 @@ namespace SirrohDegu
         private static float nextCatalogRetry;
         private static Material[] selectedWolfMaterials;
         private static MethodInfo selectedAssign;
-        private static Type selectedCatalog;
         private static string selectedSource;
         private static float nextMaterialAudit;
         internal static bool CanRender {get;private set;}
@@ -120,13 +119,25 @@ namespace SirrohDegu
             // Never allow two independent writers to fight over the same ZDO.
             if(inheritedAssignment==null)
                 inheritedAssignment=AccessTools.TypeByName("Sirro.PracaFizyczna.SkinAssignment");
-            if(inheritedAssignment!=null)
+            // Both integrated and standalone Fur Randomizer can have their own
+            // SkinAssignment class. A cloned Degu is authored by ONE ZDO owner
+            // component only; disable only inherited writers on the DEGU prefab.
+            int disabled=0;
+            foreach(Behaviour component in prefab.GetComponentsInChildren<Behaviour>(true))
             {
-                Behaviour duplicate=prefab.GetComponent(inheritedAssignment) as Behaviour;
-                if(duplicate)duplicate.enabled=false;
+                if(!component || !component.enabled)continue;
+                Type type=component.GetType();
+                if(type.Name=="SkinAssignment")
+                {
+                    component.enabled=false;
+                    disabled++;
+                }
             }
             if(!prefab.GetComponent<DeguAppearanceState>())
                 prefab.AddComponent<DeguAppearanceState>();
+            if(disabled>0)
+                DeguPlugin.Log?.LogInfo("DEGU_APPEARANCE: disabled "+disabled+
+                    " inherited Wolf SkinAssignment components on Degu ONLY.");
             DeguPlugin.Log?.LogInfo("DEGU_APPEARANCE: prefab="+prefab.name+
                 " sync="+(prefab.GetComponent<DeguAppearanceState>()!=null)+
                 " materials="+CanRender+" (wild variant writer independent of Tresura).");
@@ -222,7 +233,6 @@ namespace SirrohDegu
             {
                 if(!LoadedWolfCoats(candidate,out Material[] mats))continue;
                 selectedWolfMaterials=mats;
-                selectedCatalog=candidate;
                 selectedAssign=AccessTools.Method(candidate,"Assign");
                 selectedSource=candidate.Assembly.GetName().Name;
                 DeguPlugin.Log?.LogInfo("DEGU_APPEARANCE: native Wolf coats READY; source="+selectedSource+
@@ -242,7 +252,6 @@ namespace SirrohDegu
                     if(integrated!=null && LoadedWolfCoats(integrated,out Material[] mats))
                     {
                         selectedWolfMaterials=mats;
-                        selectedCatalog=integrated;
                         selectedAssign=AccessTools.Method(integrated,"Assign");
                         selectedSource=integrated.Assembly.GetName().Name;
                         DeguPlugin.Log?.LogInfo("DEGU_APPEARANCE: native Wolf coats READY after Load; source="+
