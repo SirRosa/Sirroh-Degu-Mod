@@ -184,16 +184,24 @@ namespace SirrohDegu
             FieldInfo f=AccessTools.Field(catalog,"Variants");
             IDictionary dict=f?.GetValue(null) as IDictionary;
             if(dict==null || !dict.Contains("Wolf"))return false;
-            Array skins=dict["Wolf"] as Array;
-            if(skins==null || skins.Length!=7)return false;
+            object wolves=dict["Wolf"];
+            // Overhaul 0.22.65 uses Variant[7]. A separate Fur Randomizer
+            // can use named dictionary entries. Preserve Overhaul's fixed
+            // numeric ZDO order in both cases; do NOT sort alphabetically.
+            Array ordered=wolves as Array;
+            IDictionary named=wolves as IDictionary;
+            string[] order={"Default","Albino","Black","DarkBrown",
+                            "Grey","Blood","Midnight"};
+            if((ordered==null || ordered.Length!=7) && named==null)return false;
             Material[] result=new Material[7];
             for(int i=0;i<7;i++)
             {
-                object skin=skins.GetValue(i);
-                if(skin==null)return false;
-                FieldInfo main=AccessTools.Field(skin.GetType(),"Main");
+                object variant=ordered!=null && ordered.Length==7?
+                    ordered.GetValue(i):named.Contains(order[i])?named[order[i]]:null;
+                if(variant==null)return false;
+                FieldInfo main=AccessTools.Field(variant.GetType(),"Main");
                 if(main==null)return false;
-                result[i]=main.GetValue(skin) as Material;
+                result[i]=main.GetValue(variant) as Material;
                 if(!result[i])return false;
             }
             materials=result;
