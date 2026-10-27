@@ -194,30 +194,32 @@ namespace SirrohDegu
                             "Grey","Blood","Midnight"};
             if((ordered==null || ordered.Length!=7) && named==null)return false;
             Material[] result=new Material[7];
+            int found=0;
             for(int i=0;i<7;i++)
             {
                 object variant=ordered!=null && ordered.Length==7?
                     ordered.GetValue(i):named.Contains(order[i])?named[order[i]]:null;
-                if(variant==null)return false;
+                if(variant==null)continue;
                 FieldInfo main=AccessTools.Field(variant.GetType(),"Main");
-                if(main==null)return false;
+                if(main==null)continue;
                 result[i]=main.GetValue(variant) as Material;
-                if(!result[i])return false;
+                if(result[i])found++;
             }
             materials=result;
-            return true;
+            return found>0;
         }
 
         private static bool ResolveWolfMaterials()
         {
-            if(selectedWolfMaterials!=null &&
-               selectedWolfMaterials.Length==7 && selectedWolfMaterials[0] &&
-               selectedWolfMaterials[6])
+            if(selectedWolfMaterials!=null && selectedWolfMaterials.Length==7)
             {
-                // Keep retrying the independent WolfVisuals eye/emission
-                // method if only the coat material source became ready.
-                if(applyProperties==null)TryResolveMaterials();
-                return true;
+                bool allReady=true;
+                for(int i=0;i<7;i++)if(!selectedWolfMaterials[i])allReady=false;
+                if(allReady)
+                {
+                    if(applyProperties==null)TryResolveMaterials();
+                    return true;
+                }
             }
             bool wolfVisualBridge=TryResolveMaterials();
             // A standalone Fur Randomizer can still provide real Wolf coats
@@ -239,16 +241,35 @@ namespace SirrohDegu
                 if(own!=null && !candidates.Contains(own))candidates.Add(own);
             }
 
-            // Try Overhaul first, then the separate fur plugin. A standalone
-            // bundle never needs to be duplicated in Degu's own assembly.
+            // Prefer a complete Wolf[7] set from either plugin. If a mod
+            // installation is missing one optional variant, still render
+            // the available real materials and RETRY the missing indices.
+            int bestCount=0;
             foreach(Type candidate in candidates)
             {
                 if(!LoadedWolfCoats(candidate,out Material[] mats))continue;
+                int count=0;
+                foreach(Material m in mats)if(m)count++;
+                if(count<=bestCount)continue;
+                bestCount=count;
                 selectedWolfMaterials=mats;
                 selectedAssign=AccessTools.Method(candidate,"Assign");
                 selectedSource=candidate.Assembly.GetName().Name;
-                DeguPlugin.Log?.LogInfo("DEGU_APPEARANCE: native Wolf coats READY; source="+selectedSource+
-                    " variants=7, render bridge=true.");
+                if(count==7)break;
+            }
+            if(bestCount>0)
+            {
+                string missing="";
+                for(int i=0;i<7;i++)
+                    if(!selectedWolfMaterials[i])
+                        missing+=(missing.Length>0?",":"")+i;
+                if(bestCount==7)
+                    DeguPlugin.Log?.LogInfo("DEGU_APPEARANCE: native Wolf coats READY; source="+
+                        selectedSource+" variants=7, render bridge=true.");
+                else
+                    WarnBridge("Wolf materials incomplete ("+bestCount+"/7 from "+
+                        selectedSource+"); missing coat indices="+missing+
+                        ". Available native variants remain usable.");
                 return true;
             }
 
@@ -303,7 +324,12 @@ namespace SirrohDegu
             {
                 coat=Mathf.Clamp(coat,0,6);
                 Material material=selectedWolfMaterials[coat];
-                if(!material)return false;
+                if(!material)
+                {
+                    WarnBridge("selected native Wolf coat index "+coat+
+                        " has no material in "+selectedSource+"; retrying without false success.");
+                    return false;
+                }
                 Material[] slots=skin.sharedMaterials;
                 if(slots==null || slots.Length<2)
                 {
