@@ -108,7 +108,7 @@ namespace SirrohDegu
                 Patch(taming,"HandleLifecycleRequest",nameof(ServerRequest),true,false);
                 Patch(taming,"Capture",nameof(AfterCapture),false,true);
                 Patch(taming,"OnStatus",nameof(BeforeStatus),true,false);
-                Patch(taming,"OnAdoptReply",nameof(AfterAdopt),false,true);
+                Patch(taming,"OnAnswer",nameof(AfterAdopt),false,true);
                 Patch(panel,"UpdateDetail",nameof(AfterDetail),false,true);
                 lastFailure=null;
                 DeguPlugin.Log?.LogInfo(
