@@ -66,3 +66,10 @@ Każdy kolejny commit zmiany: dopisać do update.md datę/wersję, zmodyfikowane
 - **Weryfikacja merytoryczna:** natywny kod Overhaul 0.22.65 faktycznie ma TamingSkill.OnAnswer i TamingSkill.OnStatus; oryginalny MaterialCatalog ma Variant[7] w kolejności Default, Albino, Black, DarkBrown, Grey, Blood, Midnight; WolfVisuals ma ApplyProperties. Naprawa identyfikacji chowańca operuje tylko istniejącym ZDO, kontroluje właściciela i limit native Slots().
 - **Wyniki:** 0.3.4 po ostatnich zmianach CI = W TRAKCIE; zachowanie w kliencie Valheim (futro 7/7, oczy 6/6, Tresura, poziom 25, multiplayer, podgląd) = NIEPRZETESTOWANE. Ostatni raport użytkownika dotyczył nieskuteczności 0.3.3. Nie wolno dopisywać runtime PASS na podstawie CI.
 - **Historia PR:** PR #3 (0.3.1), #4 (0.3.2), #5 (0.3.3) zamknięte jako FAIL IN VALHEIM, PR #6 (0.3.4) otwarty jako niezweryfikowany kandydat.
+
+### 0.3.4 — wynik pełnej kompilacji i artefaktu
+- **GitHub Actions:** run 40562099212, commit ec377799225cbde9cf48fec8e76bb49af4e84955: **SUCCESS** po poprzednich nieudanych/cancelled iteracjach. PASS: kompilacja .NET Framework net48, kontrakty kodu/AI/spawnu, Blender QA i skinning QA.
+- **Paczka Thunderstore RC:** SirRosa-SirrohDegu-0.3.4.zip z tego runu (92 173 B), w ZIP: SirrohDegu.dll (129 536 B), manifest.json (0.3.4), README.md i icon.png. Test integralności ZIP: PASS; SHA-256 `a54e256eaecd166818a662bd5b31e83df1033c75b2ad811dfb69f240bc04eaa5`.
+- **Blender QA:** 34 kości, 34 grupy wierzchołków, 2580 ścian, ocena rest-pose PASS; skinning QA PASS. To NIE dowodzi braku ostrzeżenia bindpose w Unity.
+- **Valheim runtime:** NIEPRZETESTOWANE na tym buildzie. Futro (7/7), oczy (6/6), menu Tresury, zapis/odtwarzanie chowańców, emisja od 25 poziomu, przełącznik, neutralne AI, spawn Równiny 3–7, podgląd 3D i multi = **NIEPOTWIERDZONE**. Nie ogłaszać wydania produkcyjnego.
+- **Wniosek:** kod odpowiada na potwierdzone błędy metod Overhaul (`OnAnswer`, utrata `Prefab` podczas statusu), pominięty fallback materiałów i konflikty shaderów, ale bez uruchomienia gry nie udowodniono ich rozwiązania w praktyce. PR #6 pozostaje draft, `main` bez modyfikacji.
