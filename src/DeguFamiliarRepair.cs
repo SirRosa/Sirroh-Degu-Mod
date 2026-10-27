@@ -152,13 +152,18 @@ namespace SirrohDegu
         {
             Player player=Player.m_localPlayer;
             if(!player || !Alive(info) || GetId(info)==ZDOID.None ||
-                ZRoutedRpc.instance==null)return false;
-            ZNetView playerView=player.GetComponent<ZNetView>();
-            if(!playerView || !playerView.IsValid())return false;
+                ZRoutedRpc.instance==null)
+            {
+                DeguPlugin.Log?.LogWarning("DEGU_TRESURA: menu request blocked: local player, valid familiar or network unavailable; op="+opcode);
+                return false;
+            }
             try
             {
-                // Use the native Overhaul request packet and server validation.
+                // Do not add an extra Player.GetComponent<ZNetView> condition:
+                // native TamingSkill.Send checks its own player.m_nview.
+                // Redundant guards can silently suppress every menu click.
                 send.Invoke(null,new object[]{player,opcode,GetId(info),Vector3.zero,value});
+                DeguPlugin.Log?.LogInfo("DEGU_TRESURA: sent native request op="+opcode+" value="+value);
                 return true;
             }
             catch(Exception e)
