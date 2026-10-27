@@ -313,8 +313,8 @@ namespace SirrohDegu
                     // Fallback for standalone Fur Randomizer variants. The
                     // material comes from that plugin's actual Wolf palette;
                     // preserve the vanilla live renderer shader if needed.
-                    Shader shader=slots[0] ? slots[0].shader:null;
-                    if(shader && material.shader!=shader)material.shader=shader;
+                    // NEVER edit the global shader on a Wolf material; it
+                    // is shared by unrelated wolves and other Valheim mods.
                     slots[0]=material;
                     slots[1]=material;
                     skin.sharedMaterials=slots;
