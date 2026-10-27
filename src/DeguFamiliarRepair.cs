@@ -27,6 +27,8 @@ namespace SirrohDegu
         private static Harmony harmony;
         private static MethodInfo selected, send, eyeName;
         private static FieldInfo pending, dirty, details, familiars;
+        private static MethodInfo captureNative,saveNative,slotCountNative;
+        private static float nextRosterRecovery;
         private static readonly FieldInfo PlayerNetworkView=AccessTools.Field(typeof(Character),"m_nview");
         private static FieldInfo furPrev, furNext, eyePrev, eyeNext, namePrev, nameNext, rune;
         private static Type infoType;
@@ -83,6 +85,9 @@ namespace SirrohDegu
                 familiars=AccessTools.Field(taming,"Familiars");
                 dirty=AccessTools.Field(taming,"_dirtyRecords");
                 details=AccessTools.Field(taming,"Details");
+                captureNative=AccessTools.Method(taming,"Capture");
+                saveNative=AccessTools.Method(taming,"Save");
+                slotCountNative=AccessTools.Method(taming,"Slots");
                 furPrev=AccessTools.Field(panel,"_left");
                 furNext=AccessTools.Field(panel,"_right");
                 eyePrev=AccessTools.Field(panel,"_eyeLeft");
@@ -91,7 +96,8 @@ namespace SirrohDegu
                 nameNext=AccessTools.Field(panel,"_fontRight");
                 rune=AccessTools.Field(panel,"_runesToggle");
                 if(selected==null || send==null || eyeName==null || pending==null || familiars==null || dirty==null ||
-                   details==null || furPrev==null || furNext==null ||
+                   details==null || captureNative==null || saveNative==null || slotCountNative==null ||
+                   furPrev==null || furNext==null ||
                    eyePrev==null || eyeNext==null || namePrev==null ||
                    nameNext==null || rune==null)
                     throw new MissingMemberException("Overhaul 0.22.65 Tresura surface");
@@ -321,6 +327,51 @@ namespace SirrohDegu
                 ", skin="+GetInt(info,"Skin")+" (no new pet or roster entry created).");
             return true;
         }
+        // Recover only LIVE, nearby, already-owned Degu which still has the
+        // original persistent owner ID but whose local player registry lost
+        // the corresponding ZDOID. Never claim wild/foreign pets and never
+        // exceed native Tresura's trained slot count.
+        private static void RecoverExistingVisibleOwnedPets()
+        {
+            Player player=Player.m_localPlayer;
+            if(!player || !ZNetScene.instance || !ZRoutedRpc.instance ||
+                Time.unscaledTime<nextRosterRecovery)return;
+            nextRosterRecovery=Time.unscaledTime+8f;
+            var ids=familiars?.GetValue(null) as List<ZDOID>;
+            if(ids==null)return;
+            int maximum;
+            try { maximum=(int)slotCountNative.Invoke(null,new object[]{player}); }
+            catch(Exception){return;}
+            if(maximum<1 || maximum>4 || ids.Count>=maximum)return;
+            int recovered=0;
+            foreach(Character animal in Character.GetAllCharacters())
+            {
+                if(!animal || !animal.IsTamed() ||
+                   !string.Equals(animal.gameObject.name,"Degu(Clone)",StringComparison.Ordinal))
+                    continue;
+                ZNetView view=animal.GetComponent<ZNetView>();
+                if(!view || !view.IsValid())continue;
+                ZDO zdo=view.GetZDO();
+                if(zdo==null || zdo.m_uid==ZDOID.None ||
+                   zdo.GetLong(OwnerKey,0L)!=player.GetPlayerID() ||
+                   ids.Contains(zdo.m_uid))continue;
+                GameObject template=ZNetScene.instance.GetPrefab(zdo.GetPrefab());
+                if(!template || template.name!="Degu")continue;
+                if(ids.Count>=maximum)break;
+                ids.Add(zdo.m_uid);
+                captureNative.Invoke(null,new object[]{animal});
+                recovered++;
+                DeguPlugin.Log?.LogInfo("DEGU_TRESURA: restored lost roster link to live, owned Degu "+
+                    zdo.m_uid+"; owner verified. No new ZDO created.");
+            }
+            if(recovered>0)
+            {
+                saveNative.Invoke(null,new object[]{player});
+                DeguPlugin.Log?.LogInfo("DEGU_TRESURA: persisted "+recovered+
+                    " recovered Degu registry links to player's native Tresura data.");
+            }
+        }
+
         private static void BeforeStatus(long sender)
         {
             if(ZRoutedRpc.instance==null ||
@@ -375,6 +426,12 @@ namespace SirrohDegu
         }
         private static void AfterDetail()
         {
+            try { RecoverExistingVisibleOwnedPets(); }
+            catch(Exception ex)
+            {
+                DeguPlugin.Log?.LogWarning("DEGU_TRESURA: roster recovery skipped: "+
+                    ex.GetBaseException().Message);
+            }
             object info=Selection();
             if(!IsSelectedDegu(info))return;
             bool alive=Alive(info);
