@@ -53,7 +53,7 @@ namespace SirrohDegu
                 Assembly asm=null;
                 if(Chainloader.PluginInfos.TryGetValue(OverhaulId,out var plugin))
                 {
-                    Version version=plugin.Metadata.Version;
+                    System.Version version=plugin.Metadata.Version;
                     if(version.Major!=0 || version.Minor!=22 || version.Build!=65)
                     {
                         ReportUnavailable("installed Overhaul "+version+"; expected "+RequiredVersion);

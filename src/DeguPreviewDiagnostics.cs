@@ -22,7 +22,7 @@ namespace SirrohDegu
                 Assembly assembly=null;
                 if(Chainloader.PluginInfos.TryGetValue("sirro.valheim.pracafizyczna",out var p))
                 {
-                    Version v=p.Metadata.Version;
+                    System.Version v=p.Metadata.Version;
                     if(v.Major!=0 || v.Minor!=22 || v.Build!=65)
                     {
                         ReportFailure("Overhaul version "+v+" differs from 0.22.65");
