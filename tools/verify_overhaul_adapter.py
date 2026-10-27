@@ -70,7 +70,11 @@ assert '!zdo.GetBool(RunesKey,true)' in service
 assert 'skin.name==VisualName' in service
 for dangerous in ['new Material(', 'gameObject.AddComponent<Character>', 'new ZNetView(']:
     assert dangerous not in service,dangerous
-assert 'if(!TryResolveMaterials())return false;' in service
+assert 'bool wolfVisualBridge=TryResolveMaterials();' in service
+assert 'Chainloader.PluginInfos.ContainsKey("sirroh.furrandomizer")' in service
+assert 'if(type.Name=="SkinAssignment")' in service
+assert 'component.enabled=false;' in service
+assert 'prefab.GetComponentsInChildren<Behaviour>(true)' in service
 assert 'AccessTools.TypeByName("Sirro.PracaFizyczna.MaterialCatalog")' in service
 assert 'dict.Contains("Wolf")' in service
 assert 'return false;' in service
