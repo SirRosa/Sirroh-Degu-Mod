@@ -56,7 +56,7 @@ for name in ['"Default","Albino","Black","DarkBrown","Grey","Blood","Midnight"',
              'zdo.GetBool(DeguWolfPalette.RunesKey,true) && level>=25',
              'skin.bones.Length==skin.sharedMesh.bindposes.Length']:
     assert name in wolf,name
-assert "Overhaul version" not in wolf
+assert "version.Major!=" not in wolf # no hard-coded BepInEx version gate
 assert "RequiredVersion" not in wolf
 assert "material.shader=" not in wolf
 assert 'Assembly.LoadFrom' not in wolf
