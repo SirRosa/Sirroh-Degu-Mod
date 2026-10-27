@@ -95,27 +95,69 @@ namespace SirrohDegu
                     }
                     var skin=from.GetComponent<SkinnedMeshRenderer>();
                     if(!skin || !skin.enabled || !skin.sharedMesh)continue;
-                    var result=into.gameObject.AddComponent<SkinnedMeshRenderer>();
+                    // Native Unity can evaluate a newly attached renderer
+                    // before its bones are populated. Validate and construct
+                    // it on an inactive preview node; never bind missing bones
+                    // to the unrelated renderer transform.
                     Transform[] original=skin.bones;
-                    var bones=new Transform[original.Length];
-                    for(int i=0;i<bones.Length;i++)
-                        bones[i]=original[i] && map.TryGetValue(original[i],out Transform found)?found:into;
-                    if(skin.sharedMesh.bindposes.Length!=bones.Length)
+                    if(original==null ||
+                        skin.sharedMesh.bindposes.Length!=original.Length)
                     {
-                        DeguPlugin.Log?.LogWarning("Degu preview skipped inconsistent mesh: bindposes="+
-                            skin.sharedMesh.bindposes.Length+", bones="+bones.Length);
-                        UnityEngine.Object.Destroy(result);
+                        DeguPlugin.Log?.LogWarning(
+                            "Degu preview skipped inconsistent source mesh: bindposes="+
+                            skin.sharedMesh.bindposes.Length+", bones="+
+                            (original==null?-1:original.Length));
                         continue;
                     }
-                    result.bones=bones;
-                    result.rootBone=skin.rootBone && map.TryGetValue(skin.rootBone,out Transform root)?root:into;
-                    result.sharedMesh=skin.sharedMesh;
-                    var live=Matching(from,source.transform,living?living.transform:null);
-                    result.sharedMaterials=live && live.sharedMaterials.Length==skin.sharedMaterials.Length
-                        ?live.sharedMaterials:skin.sharedMaterials;
-                    result.localBounds=skin.localBounds;
-                    result.updateWhenOffscreen=true;
-                    result.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+                    var bones=new Transform[original.Length];
+                    bool valid=true;
+                    for(int i=0;i<bones.Length;i++)
+                    {
+                        if(!original[i] ||
+                            !map.TryGetValue(original[i],out Transform found) || !found)
+                        {valid=false;break;}
+                        bones[i]=found;
+                    }
+                    Transform root=null;
+                    if(skin.rootBone &&
+                       (!map.TryGetValue(skin.rootBone,out root) || !root))
+                        valid=false;
+                    if(!valid)
+                    {
+                        DeguPlugin.Log?.LogError(
+                            "Degu preview skipped renderer with unmapped skeleton: "+from.name);
+                        continue;
+                    }
+                    bool wasActive=into.gameObject.activeSelf;
+                    into.gameObject.SetActive(false);
+                    SkinnedMeshRenderer result=null;
+                    try
+                    {
+                        result=into.gameObject.AddComponent<SkinnedMeshRenderer>();
+                        result.enabled=false;
+                        result.bones=bones;
+                        result.rootBone=root;
+                        result.sharedMesh=skin.sharedMesh;
+                        var live=Matching(from,source.transform,living?living.transform:null);
+                        result.sharedMaterials=live &&
+                            live.sharedMaterials.Length==skin.sharedMaterials.Length
+                            ?live.sharedMaterials:skin.sharedMaterials;
+                        result.localBounds=skin.localBounds;
+                        result.updateWhenOffscreen=true;
+                        result.shadowCastingMode=
+                            UnityEngine.Rendering.ShadowCastingMode.Off;
+                        result.enabled=true;
+                    }
+                    catch
+                    {
+                        if(result)
+                        {
+                            result.enabled=false;
+                            UnityEngine.Object.Destroy(result);
+                        }
+                        throw;
+                    }
+                    finally { into.gameObject.SetActive(wasActive); }
                 }
             }
             catch(Exception e)
