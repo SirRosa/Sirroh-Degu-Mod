@@ -172,3 +172,16 @@ assert 'internal static bool MaterialMatches(GameObject obj,int coat)' in servic
 assert 'overridden=!DeguAppearanceService.MaterialMatches(gameObject,coat);' in service
 assert 'nextMaterialProbe=Time.unscaledTime+3f;' in service
 print("PASS native adoption/status hook API, owner-gated recovery, no shared Wolf material mutation")
+
+# 0.3.4 recovery guards — code contracts do not replace Valheim tests.
+assert 'internal static bool MaterialMatches(GameObject obj,int coat)' in service
+assert 'overridden=!DeguAppearanceService.MaterialMatches(gameObject,coat);' in service
+assert 'nextMaterialProbe=Time.unscaledTime+3f;' in service
+assert 'IDictionary named=wolves as IDictionary;' in service
+assert 'string[] order={"Default","Albino","Black","DarkBrown",' in service
+assert 'return found>0;' in service
+assert 'variants=7' in service
+assert 'missing coat indices=' in service
+assert 'reportedFailures.Add(reason)' in service
+assert 'material.shader=' not in service
+print("PASS native materials: exact-order arrays and named catalogs, partial recovery, bounded warnings, shader immutability")
