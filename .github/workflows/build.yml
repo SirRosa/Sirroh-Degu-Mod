@@ -139,7 +139,7 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: SirrohDegu-031-UNVERIFIED-IN-GAME
+          name: SirrohDegu-032-UNVERIFIED-IN-GAME
           path: |
             release/SirRosa-SirrohDegu-0.3.2.zip
             release/SirrohDegu-0.3.2.zip
