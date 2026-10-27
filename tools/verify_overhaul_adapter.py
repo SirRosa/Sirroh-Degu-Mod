@@ -1,82 +1,99 @@
+"""Regression contracts for Degu 0.3.1 independent appearance pipeline.
+
+Static checks cannot replace Valheim runtime, but catch accidental coupling
+between wild randomization, Overhaul menu patches and prefab construction.
+"""
 from pathlib import Path
+import hashlib
 import re
-bridge=Path("src/OverhaulCompatibility.cs").read_text()
-plugin=Path("src/DeguPlugin.cs").read_text()
+import subprocess
+
+def sha(path):
+    return subprocess.check_output(["git", "hash-object", path], text=True).strip()
+
+# Keep the user-verified 0.2.5 gameplay / model code byte-identical.
+frozen = {
+    "src/DeguWorld.cs": "c8c5294b65bec39d88ad5cabd2068f1d3cd886e9",
+    "src/DeguMesh.cs": "4f828216dfa5eaf2dc075956b59dfa8769223575",
+    "src/DeguRigDriver.cs": "72cb05dfde8d02b2ff4e3e523cdc7b82ba0232c5",
+    "src/DeguEyeEmission.cs": "f0bf96db0577dcb01d2b9246fcabf5330b791fee",
+    "Assets/Degu.part1.b64": "3643a4de782a1b9c5fc1ac95dc586d5caf7c3aef",
+    "Assets/Degu.part2.b64": "dddd2ba9a064c5ef8f57a66fa87a956f8477d869",
+    "Assets/Degu.part3.b64": "b0f39cdcf191621d6df4211fa4ae004945ba599b",
+}
+for path, expected in frozen.items():
+    assert sha(path) == expected, "Regression in protected v0.2.5 file: "+path
+print("PASS byte-identical 0.2.5 world, AI, geometry, rig and source meshes")
+
 world=Path("src/DeguWorld.cs").read_text()
-assert 'SupportedVersion = "0.22.65"' in bridge
-assert 'Chainloader.PluginInfos.TryGetValue' in bridge
-assert 'patches.UnpatchSelf()' in bridge
-for entry in ("ChooseEyeColor","ToggleElementRunes","Capture","SyncFamiliar","HandleLifecycleRequest","UpdateDetail","Show","ApplyPreview"):
-    assert '"'+entry+'"' in bridge,entry
-for entry in ("IsSupported","Count","DisplayName","PreviewTexture","RandomIndex","TryApply"):
-    assert '"'+entry+'"' in bridge,entry
-assert 'DeguRenderer = "SirrohDegu_StableVisual"' in bridge
-assert 'renderer,0,material,true' in bridge and 'renderer,1,material,true' in bridge
-assert 'new object[]{animalObject,renderer,material}' in bridge
-assert 'zdo.GetInt(LevelKey,1)>=25' in bridge
-assert 'view.IsOwner()' in bridge and 'SkinKey' in bridge and 'EyeKey' in bridge
-assert 'OverhaulCompatibility.AfterDeguRegistered' in plugin
-assert 'OverhaulCompatibility.Install()' in plugin
-assert 'PlainsMonsters' in world
-assert 'SetIfPresent(ai, "m_huntPlayer", false)' in world
-assert 'SetIfPresent(ai, "m_attackPlayerObjects", false)' in world
-assert 'if (c != null && !c.IsTamed()) __result = null;' in world
-for property,value in (("m_biome",'"Plains"'),("m_groupSizeMin","3"),("m_groupSizeMax","7"),("m_spawnAtDay","true"),("m_spawnAtNight","true")):
-    assert re.search(r'Put\(spawn,"'+property+r'",'+value+r'\)',world),property
-assert 'source != null && source.name == "Degu"' in world
-print("PASS Degu compatibility source contract and Plains faction/spawn configuration")
+for token in ('PlainsMonsters','SetIfPresent(ai, "m_huntPlayer", false)',
+              'SetIfPresent(ai, "m_attackPlayerObjects", false)',
+              'Put(spawn,"m_groupSizeMin",3)',
+              'Put(spawn,"m_groupSizeMax",7)',
+              'Put(spawn,"m_spawnInterval",250f)',
+              'Put(spawn,"m_spawnChance",35f)'):
+    assert token in world,token
+print("PASS neutral AI and Plains group-spawn parameters")
 
-# Regression for Valheim 1.0: Localization.AddWord calls SetupLanguage;
-# the SetupLanguage postfix must NOT call AddWord recursively.
-localize=world[world.index("internal static void Localize()"):world.index("private static object Field(")]
-assert 'if (_localizationRegistrationActive) return;' in localize
-assert '_localizationRegistrationActive=true;' in localize
-assert 'try { RegisterLocalizationWord(); }' in localize
-assert 'finally { _localizationRegistrationActive=false; }' in localize
-assert 'add.Invoke(loc,new object[]{NameKey' in localize
-assert 'harmony.Patch(setup,postfix:new HarmonyMethod(after));' in localize
-assert localize.index('if (_localizationRegistrationActive) return;') < localize.index('RegisterLocalizationWord();')
-print('PASS Localization.AddWord -> SetupLanguage recursion guarded')
-
-assert 'Put(spawn,"m_requiredNotGlobalKey","");' not in world
-assert 'obj.GetType().GetField(name,' in world
+plugin=Path("src/DeguPlugin.cs").read_text()
+service=Path("src/DeguAppearanceService.cs").read_text()
+menu=Path("src/DeguFamiliarRepair.cs").read_text()
 preview=Path("src/DeguPreviewDiagnostics.cs").read_text()
-assert preview.index('result.bones=bones;') < preview.index('result.sharedMesh=skin.sharedMesh;')
-assert 'BeforeDetail' in preview and 'AfterDetail' in preview
-assert 'zdo.GetLong("sirroh.tresura.owner.v1",0L)' in preview
-print("PASS optional spawn field, Degu-only preview bindpose order and UI diagnostics")
+assert 'DeguAppearanceService.Install();' in plugin
+assert 'DeguAppearanceService.RegisterPrefab(existing);' in plugin
+assert 'DeguAppearanceService.RegisterPrefab(_deguPrefab);' in plugin
+assert 'OverhaulCompatibility.Install();' not in plugin
+assert 'OverhaulCompatibility.AfterDeguRegistered' not in plugin
+assert 'DeguPreviewDiagnostics.Install();' in plugin
+assert 'DeguPreviewDiagnostics.Shutdown();' in plugin
+assert 'DeguFamiliarRepair.Install();' in plugin
+assert 'DeguFamiliarRepair.Shutdown();' in plugin
+assert 'class DeguAppearanceState : MonoBehaviour' in service
+assert 'prefab.AddComponent<DeguAppearanceState>()' in service
+assert 'if(owner && !zdo.GetBool(DeguAppearanceService.ActiveKey,false))' in service
+assert 'UnityEngine.Random.Range(0,7)' in service
+assert 'UnityEngine.Random.Range(1,7)' in service
+assert 'if(owner && zdo.GetInt(DeguAppearanceService.EyeKey,0)<=0)' in service
+assert 'if(zdo.GetInt(DeguAppearanceService.SkinKey,-1)<0)' in service
+assert 'bool ready=zdo.GetBool(DeguAppearanceService.ActiveKey,false)' in service
+assert 'coat>=0 && coat<7 && eye>=1 && eye<=6' in service
+assert 'if(DeguAppearanceService.ApplyVisual(gameObject,coat,eye,element))' in service
+assert 'return Mathf.Clamp(zdo.GetInt(ElementKey,0),0,5)' in service
+assert 'zdo.GetInt(LevelKey,1)<25' in service
+assert '!zdo.GetBool(RunesKey,true)' in service
+assert 'skin.name==VisualName' in service
+for dangerous in ['new Material(', 'gameObject.AddComponent<Character>', 'new ZNetView(']:
+    assert dangerous not in service,dangerous
+print("PASS ZDO-authoritative wild appearance independent from menu installation")
 
-# User-provided lossless RGBA 96x96 creature icon packaged into the single DLL.
-import hashlib, struct
+for name in ('ChooseSkin','ChooseEyes','ChooseName','ToggleRunes','ServerRequest',
+             'AfterDetail','AfterCapture'):
+    assert 'private static ' in menu and name+'(' in menu,name
+for command in ('if(!SendRequest(info,10,next))return false;',
+                'if(!SendRequest(info,18,next))return false;',
+                'if(!SendRequest(familiar,11,next))return false;',
+                'if(!SendRequest(info,17,previous?0:1))return false;'):
+    assert command in menu,command
+for token in ('pet.Set(SkinKey,requested)', 'pet.Set(EyeKey,requested)',
+              'pet.Set(RunesKey,requested==1)', 'pet.Set(NameColorKey,requested)',
+              'pet.GetLong(OwnerKey,0L)!=userId','roster.Contains(target)',
+              'pet.GetInt(PetLevelKey,1)<25'):
+    assert token in menu,token
+assert 'nameof(CopyRenderers)' in preview
+assert 'nameof(AfterPreviewShow)' in preview
+assert preview.index('result.bones=bones;') < preview.index('result.sharedMesh=skin.sharedMesh;')
+assert 'DeguAppearanceService.ApplyVisual(visual,skin,eyeColor,appliedElement)' in preview
+print("PASS separate native Tresura RPC and detached-preview adapters")
+
+import struct
 icon=Path("Assets/Icons/Degu.png").read_bytes()
-assert icon[:8] == bytes.fromhex("89504e470d0a1a0a")
+assert icon[:8]==bytes.fromhex("89504e470d0a1a0a")
 assert struct.unpack_from(">II",icon,16)==(96,96)
 assert hashlib.sha256(icon).hexdigest()=="925240b90df35a969b1adebf666a7d7875aa4d502f2ce027cd27095d65613a03"
-proj=Path("SirrohDegu.csproj").read_text()
-assert '<EmbeddedResource Include="Assets/Icons/Degu.png" LogicalName="SirrohDegu.Creatures.Degu.png" />' in proj
-code=Path("src/DeguCompassIcon.cs").read_text()
-assert 'CreatureIconLibrary' in code and '"ForPrefab"' in code
-assert 'nameof(AfterPrefabIcon)' in code
-assert 'GetManifestResourceStream(ResourceName)' in code
-assert 'Sprite.Create(texture=loaded,new Rect(0f,0f,96f,96f),' in code
-assert 'DeguCompassIcon.Register(_patches);' in plugin
-assert 'DeguCompassIcon.Shutdown();' in plugin
-print("PASS exact user 96x96 icon embedded and wired to Overhaul creature/compass icon pipeline")
+assert '<EmbeddedResource Include="Assets/Icons/Degu.png" LogicalName="SirrohDegu.Creatures.Degu.png" />' in Path("SirrohDegu.csproj").read_text()
+print("PASS original Degu compass icon unchanged")
 
-# Full companion integration regression: server-owned ZDO, menu buttons, 4 opcodes.
-repair=Path("src/DeguFamiliarRepair.cs").read_text()
-for name in ("ChooseSkin","ChooseEyes","ChooseName","ToggleRunes","ServerRequest","AfterDetail","AfterCapture"):
-    assert "private static " in repair and name+"(" in repair,name
-for cmd in ("SendRequest(info,10,next)","SendRequest(info,18,next)","SendRequest(familiar,11,next)","SendRequest(info,17,previous?0:1)"):
-    assert cmd in repair,cmd
-for key in ("pet.Set(SkinKey,requested)","pet.Set(NameColorKey,requested)","pet.Set(EyeKey,requested)","pet.Set(RunesKey,requested==1)"):
-    assert key in repair,key
-assert "pet.GetLong(OwnerKey,0L)!=userId" in repair
-assert "roster.Contains(target)" in repair
-assert "pet.GetInt(PetLevelKey,1)<25" in repair
-assert "ZDOMan.instance.ForceSendZDO(target)" in repair
-assert "DeguFamiliarRepair.Install();" in plugin
-assert "DeguFamiliarRepair.Shutdown();" in plugin
-assert "new WaitForSeconds(1f)" in bridge
-assert "skin!=lastSkin || nextEye!=lastEye" in bridge
-print("PASS Degu controls/RPC validation, persistence and reactive live appearance")
+manifest=Path("manifest.json").read_text()
+assert '"version_number": "0.3.1"' in manifest
+assert '"0.3.1"' in plugin
+print("PASS 0.3.1 source, manifest and reproducibility contracts")
