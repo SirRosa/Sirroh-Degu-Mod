@@ -193,7 +193,13 @@ namespace SirrohDegu
         {
             if(selectedWolfMaterials!=null &&
                selectedWolfMaterials.Length==7 && selectedWolfMaterials[0] &&
-               selectedWolfMaterials[6])return true;
+               selectedWolfMaterials[6])
+            {
+                // Keep retrying the independent WolfVisuals eye/emission
+                // method if only the coat material source became ready.
+                if(applyProperties==null)TryResolveMaterials();
+                return true;
+            }
             if(!TryResolveMaterials())return false;
             selectedWolfMaterials=null;
             selectedCatalog=null;
