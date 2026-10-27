@@ -22,7 +22,8 @@ namespace SirrohDegu
         private const string VisualName="SirrohDegu_StableVisual";
         private static Type inheritedAssignment;
         private static FieldInfo variants;
-        private static MethodInfo assign,applyProperties;
+        private static MethodInfo assign,applyProperties,loadCatalog;
+        private static float nextCatalogRetry;
         internal static bool CanRender {get;private set;}
 
         private static string lastFailure;
@@ -81,6 +82,7 @@ namespace SirrohDegu
                 variants=catalogVariants;
                 applyProperties=eyeShader;
                 assign=AccessTools.Method(catalog,"Assign");
+                loadCatalog=AccessTools.Method(catalog,"Load");
                 inheritedAssignment=AccessTools.TypeByName("Sirro.PracaFizyczna.SkinAssignment");
                 CanRender=true;
                 lastFailure=null;
@@ -107,6 +109,8 @@ namespace SirrohDegu
             if(!prefab)return;
             // Wolf's inherited SkinAssignment is not Degu's authority.
             // Never allow two independent writers to fight over the same ZDO.
+            if(inheritedAssignment==null)
+                inheritedAssignment=AccessTools.TypeByName("Sirro.PracaFizyczna.SkinAssignment");
             if(inheritedAssignment!=null)
             {
                 Behaviour duplicate=prefab.GetComponent(inheritedAssignment) as Behaviour;
@@ -142,8 +146,25 @@ namespace SirrohDegu
                 var coats=all==null?null:all["Wolf"] as Array;
                 if(coats==null || coats.Length<7)
                 {
-                    WarnBridge("Wolf[7] variant array not ready; waiting for native Overhaul FurRandomizer.Load.");
-                    return false;
+                    // Overhaul can defer its Fur bundle when a standalone Fur
+                    // Randomizer plugin is present. Ask its own loader to
+                    // resolve the shared bundle, never load a second one here.
+                    if(loadCatalog!=null && Time.unscaledTime>=nextCatalogRetry)
+                    {
+                        nextCatalogRetry=Time.unscaledTime+5f;
+                        try { loadCatalog.Invoke(null,null); }
+                        catch(Exception ex)
+                        {
+                            WarnBridge("native FurRandomizer.Load: "+ex.GetBaseException().Message);
+                        }
+                        all=variants.GetValue(null) as IDictionary;
+                        coats=all==null?null:all["Wolf"] as Array;
+                    }
+                    if(coats==null || coats.Length<7)
+                    {
+                        WarnBridge("Wolf[7] materials not yet available from the native Fur Randomizer.");
+                        return false;
+                    }
                 }
                 coat=Mathf.Clamp(coat,0,6);
                 object selected=coats.GetValue(coat);
