@@ -11,6 +11,15 @@
     <ReferenceDir Condition="'$(ReferenceDir)' == ''">.ci-deps</ReferenceDir>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Historical experiments remain readable on GitHub but cannot patch the
+         runtime in 0.4.0. Only freshly authored independent modules are built. -->
+    <Compile Remove="src/DeguAppearanceService.cs" />
+    <Compile Remove="src/DeguFamiliarRepair.cs" />
+    <Compile Remove="src/DeguPreviewDiagnostics.cs" />
+    <Compile Remove="src/DeguBindposeTrace.cs" />
+    <Compile Remove="src/OverhaulCompatibility.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
     <Reference Include="assembly_valheim"><HintPath>$(ReferenceDir)/assembly_valheim.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="assembly_utils"><HintPath>$(ReferenceDir)/assembly_utils.dll</HintPath><Private>false</Private></Reference>
