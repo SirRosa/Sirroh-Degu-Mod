@@ -146,6 +146,24 @@ namespace SirrohDegu
         private static readonly WaitForSeconds PollDelay=new WaitForSeconds(1f);
         private IEnumerator Start()
         {
+            // Wait until Unity completed ALL component Awake callbacks on the
+            // network clone before activating its staged skinned renderer.
+            // Activation during Instantiate / ZNetView.Awake may observe
+            // incompletely remapped skeleton references.
+            yield return null;
+            if(!gameObject)yield break;
+            var visual=DeguAppearanceService.Visible(gameObject);
+            if(!visual || !visual.sharedMesh || !visual.rootBone ||
+               visual.bones.Length!=visual.sharedMesh.bindposes.Length)
+            {
+                DeguPlugin.Log?.LogError("DEGU_VISUAL: cannot enable staged clone, invalid bones/bindposes/root.");
+            }
+            else
+            {
+                visual.enabled=true;
+                DeguPlugin.Log?.LogInfo("DEGU_VISUAL: activated after all Awake callbacks; bones="+
+                    visual.bones.Length+" bindposes="+visual.sharedMesh.bindposes.Length);
+            }
             ZNetView view=GetComponent<ZNetView>();
             if(!view)
             {
