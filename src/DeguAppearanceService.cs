@@ -74,11 +74,15 @@ namespace SirrohDegu
                 }
                 var catalogVariants=AccessTools.Field(catalog,"Variants");
                 var eyeShader=AccessTools.Method(visual,"ApplyProperties");
-                if(catalogVariants==null || eyeShader==null)
+                if(catalogVariants==null)
                 {
-                    WarnBridge("Overhaul 0.22.65 has no Variants or ApplyProperties.");
+                    WarnBridge("Overhaul MaterialCatalog.Variants field missing.");
                     return false;
                 }
+                // Coat must not fail just because an optional eye-emission
+                // shader method was renamed. Continue applying Wolf fur.
+                if(eyeShader==null)
+                    WarnBridge("WolfVisuals.ApplyProperties unavailable; coat remains usable but eyes/emission need compatible Overhaul.");
                 variants=catalogVariants;
                 applyProperties=eyeShader;
                 assign=AccessTools.Method(catalog,"Assign");
@@ -204,8 +208,9 @@ namespace SirrohDegu
                     slots[1]=material;
                     skin.sharedMaterials=slots;
                 }
-                applyProperties.Invoke(null,new object[]{skin,material,
-                    Mathf.Clamp(eye,0,6),Mathf.Clamp(element,0,5)});
+                if(applyProperties!=null)
+                    applyProperties.Invoke(null,new object[]{skin,material,
+                        Mathf.Clamp(eye,0,6),Mathf.Clamp(element,0,5)});
                 // Wolf's shader writes overrides to submesh 0. Degu eyes are
                 // submesh 1, so mirror complete eye/emission properties.
                 var block=new MaterialPropertyBlock();
