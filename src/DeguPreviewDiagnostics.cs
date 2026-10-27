@@ -151,12 +151,13 @@ namespace SirrohDegu
                         continue;
                     }
                     var bones=new Transform[original.Length];
-                    for(int i=0;i<bones.Length;i++)
-                        bones[i]=original[i] && map.TryGetValue(original[i],out Transform found)?found:into;
                     bool mapped=true;
                     for(int i=0;i<original.Length;i++)
+                    {
                         if(!original[i] || !map.TryGetValue(original[i],out Transform found) || !found)
                         {mapped=false;break;}
+                        bones[i]=found;
+                    }
                     if(!mapped || !skin.rootBone || !map.TryGetValue(skin.rootBone,out Transform boundRoot) || !boundRoot)
                     {
                         DeguPlugin.Log?.LogWarning("DEGU_PREVIEW: unmapped Degu bone/root; skipping renderer "+skin.name);
