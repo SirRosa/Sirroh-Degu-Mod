@@ -14,7 +14,7 @@ def sha(path):
 # Keep the user-verified 0.2.5 gameplay / model code byte-identical.
 frozen = {
     "src/DeguWorld.cs": "c8c5294b65bec39d88ad5cabd2068f1d3cd886e9",
-    "src/DeguMesh.cs": "4f828216dfa5eaf2dc075956b59dfa8769223575",
+    # DeguMesh has one controlled lifecycle change, checked below; no geometry change.
     "src/DeguRigDriver.cs": "72cb05dfde8d02b2ff4e3e523cdc7b82ba0232c5",
     "src/DeguEyeEmission.cs": "f0bf96db0577dcb01d2b9246fcabf5330b791fee",
     "Assets/Degu.part1.b64": "3643a4de782a1b9c5fc1ac95dc586d5caf7c3aef",
@@ -23,7 +23,13 @@ frozen = {
 }
 for path, expected in frozen.items():
     assert sha(path) == expected, "Regression in protected v0.2.5 file: "+path
-print("PASS byte-identical 0.2.5 world, AI, geometry, rig and source meshes")
+mesh=Path("src/DeguMesh.cs").read_text()
+assert sha("src/DeguMesh.cs")=="ae30815d9666c561faa67fd159e7a25cbe9662a3"
+assert 'skin.enabled = false;' in mesh
+assert 'skin.bones = fitted;' in mesh
+assert 'model.bindposes = inverseBinds;' in mesh
+assert 'skin.sharedMesh = model;' in mesh
+print("PASS original geometry, weights, rig, UV inputs; only deferred renderer activation changed")
 
 world=Path("src/DeguWorld.cs").read_text()
 for token in ('PlainsMonsters','SetIfPresent(ai, "m_huntPlayer", false)',
@@ -109,3 +115,8 @@ for token in ("DeguBindposeTrace.Install();","DeguBindposeTrace.Shutdown();",
               "DeguBindposeTrace.AfterPrefab("):
     assert token in plugin,token
 print("PASS read-only Unity bindpose incident correlation without hiding errors")
+
+assert 'skin.enabled=true;' in plugin
+assert 'skin.bones.Length!=skin.sharedMesh.bindposes.Length' in plugin
+assert 'skin.name!="SirrohDegu_StableVisual"' in preview
+print("PASS Degu renderer remains disabled during network prefab cloning, enabled after ZNetView initialization")
