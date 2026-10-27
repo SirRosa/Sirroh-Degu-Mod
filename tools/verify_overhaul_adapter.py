@@ -151,6 +151,11 @@ print("PASS source-code audit and version-by-version update.md ledger")
 # Native Overhaul 0.22.65 API contract (cross-checked with upstream source).
 assert 'Patch(taming,"OnStatus",nameof(BeforeStatus),true,false);' in menu
 assert 'Patch(taming,"OnAnswer",nameof(AfterAdopt),false,true);' in menu
+assert 'private static bool FromServer(long sender)' in menu
+assert 'AccessTools.Method(typeof(ZRoutedRpc),"GetServerPeerID")' in menu
+assert 'GetServerPeerID()' not in menu
+assert 'if(!FromServer(sender))return;' in menu
+assert 'if(pkg==null || !FromServer(sender))return;' in menu
 assert 'Patch(taming,"OnAdoptReply",' not in menu # invented method does not exist
 assert 'HydrateExistingOwnedDegu(' in menu
 assert 'pet.GetLong(OwnerKey,0L)!=Player.m_localPlayer.GetPlayerID()' in menu
