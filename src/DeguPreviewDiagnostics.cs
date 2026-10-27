@@ -138,7 +138,11 @@ namespace SirrohDegu
                         renderer.receiveShadows=false;
                     }
                     var skin=from.GetComponent<SkinnedMeshRenderer>();
-                    if(!skin || !skin.enabled || !skin.sharedMesh)continue;
+                    // Staged network prefab keeps its Degu visual disabled
+                    // until clone initialization. Detached UI preview is safe
+                    // to construct from that renderer without a Character.
+                    if(!skin || !skin.sharedMesh ||
+                       (!skin.enabled && skin.name!="SirrohDegu_StableVisual"))continue;
                     Transform[] original=skin.bones;
                     if(original==null || original.Length==0 ||
                        skin.sharedMesh.bindposes.Length!=original.Length)
