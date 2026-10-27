@@ -109,6 +109,11 @@ namespace SirrohDegu
                     sourceScale.z / Mathf.Max(0.00001f, Mathf.Abs(parentScale.z)));
                 SkinnedMeshRenderer skin =
                     stableVisual.AddComponent<SkinnedMeshRenderer>();
+                // Network prefabs can activate during Instantiate before Unity
+                // remaps clone-local bone references. Keep only THIS renderer
+                // disabled until the spawned ZNetView.Awake has completed.
+                // Bone weights, bindposes and source mesh remain unchanged.
+                skin.enabled = false;
                 skin.sharedMaterials = originalSkin.sharedMaterials;
                 skin.shadowCastingMode = originalSkin.shadowCastingMode;
                 skin.receiveShadows = originalSkin.receiveShadows;
@@ -283,6 +288,7 @@ namespace SirrohDegu
                 Animator wolfAnimator = cloneRoot.GetComponentInChildren<Animator>(true);
                 if (wolfAnimator != null)
                     wolfAnimator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+                InstanceLog("Degu visual staged disabled on network prefab; activate only after clone bone remap.");
                 InstanceLog("Degu visual v0.1.10: stable renderer=" +
                     skin.gameObject.name + ", animator source=" +
                     originalSkin.transform.name + ", 34 bones, vertices=" +
