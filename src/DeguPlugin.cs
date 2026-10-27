@@ -32,11 +32,13 @@ namespace SirrohDegu
             OverhaulCompatibility.Install();
             DeguCompassIcon.Register(_patches);
             DeguFamiliarRepair.Install();
+            DeguRuntimeAudit.Install();
             Logger.LogInfo("Sirroh Degu v0.2.5 loaded. Waiting for ZNetScene prefab registry.");
         }
 
         private void OnDestroy()
         {
+            DeguRuntimeAudit.Shutdown();
             OverhaulCompatibility.Shutdown();
             DeguCompassIcon.Shutdown();
             DeguFamiliarRepair.Shutdown();
@@ -70,7 +72,10 @@ namespace SirrohDegu
             {
                 if (__instance != null && __instance.gameObject != null &&
                     __instance.gameObject.name == "Degu(Clone)")
+                {
                     Log?.LogInfo("Degu(Clone): ZNetView.Awake executed (runtime spawn initialized).");
+                    DeguRuntimeAudit.ReportSpawn(__instance);
+                }
             }
         }
 
@@ -140,6 +145,7 @@ namespace SirrohDegu
                 if (existing != null && existing.name == "Degu")
                 {
                     OverhaulCompatibility.AfterDeguRegistered(existing);
+                    DeguRuntimeAudit.ReportPrefab(existing);
                     Log?.LogInfo("Degu already exists in ZNetScene.GetPrefab; no duplicate.");
                     return;
                 }
@@ -239,6 +245,7 @@ namespace SirrohDegu
             }
 
             OverhaulCompatibility.AfterDeguRegistered(_deguPrefab);
+            DeguRuntimeAudit.ReportPrefab(_deguPrefab);
             Log?.LogInfo("Degu REGISTERED + VERIFIED: ZNetScene.GetPrefab('Degu') resolved; " +
                          "prefab activeSelf=" + _deguPrefab.activeSelf +
                          ", activeInHierarchy=" + _deguPrefab.activeInHierarchy +
