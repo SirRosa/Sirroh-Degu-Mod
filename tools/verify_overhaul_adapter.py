@@ -97,3 +97,15 @@ manifest=Path("manifest.json").read_text()
 assert '"version_number": "0.3.1"' in manifest
 assert '"0.3.1"' in plugin
 print("PASS 0.3.1 source, manifest and reproducibility contracts")
+
+trace=Path("src/DeguBindposeTrace.cs").read_text()
+for token in ("OnUnityLog(", "BeforeSpawn(", "AfterSpawn(", "AfterPrefab(",
+              "DEGU_BINDPOSE_EVENT", "STATUS=COUNT_OK_MATRIX_UNVERIFIED"):
+    assert token in trace, token
+for forbidden in ("zdo.Set(", "AddComponent<", "renderer.sharedMesh=", "sharedMesh ="):
+    assert forbidden not in trace, "Bindpose trace must never modify the model: "+forbidden
+for token in ("DeguBindposeTrace.Install();","DeguBindposeTrace.Shutdown();",
+              "DeguBindposeTrace.BeforeSpawn(", "DeguBindposeTrace.AfterSpawn(",
+              "DeguBindposeTrace.AfterPrefab("):
+    assert token in plugin,token
+print("PASS read-only Unity bindpose incident correlation without hiding errors")
