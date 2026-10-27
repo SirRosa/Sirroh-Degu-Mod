@@ -21,47 +21,85 @@ namespace SirrohDegu
         private const string RequiredVersion="0.22.65";
         private const string VisualName="SirrohDegu_StableVisual";
         private static Type inheritedAssignment;
-        private static FieldInfo variants,materialField;
+        private static FieldInfo variants;
         private static MethodInfo assign,applyProperties;
-        private static bool warned;
         internal static bool CanRender {get;private set;}
 
+        private static string lastFailure;
+        private static bool incompatible;
+
+        // Some BepInEx load configurations populate PluginInfos later than
+        // the dependent plugin's Awake. Never make a one-time failure permanent.
+        // Resolve the exact loaded Overhaul types again when a Degu needs a
+        // material. No patch, alias, scene scan or material clone is needed.
         internal static void Install()
         {
-            CanRender=false;
+            TryResolveMaterials();
+        }
+
+        internal static bool TryResolveMaterials()
+        {
+            if(CanRender)return true;
+            if(incompatible)return false;
             try
             {
-                if(!Chainloader.PluginInfos.TryGetValue(OverhaulId,out var plugin))
+                Assembly assembly=null;
+                if(Chainloader.PluginInfos.TryGetValue(OverhaulId,out var plugin))
                 {
-                    DeguPlugin.Log?.LogWarning("DEGU_APPEARANCE: Overhaul missing. ZDO randomizer remains active; cosmetics need Overhaul 0.22.65.");
-                    return;
+                    Version version=plugin.Metadata.Version;
+                    if(version.Major!=0 || version.Minor!=22 || version.Build!=65)
+                    {
+                        incompatible=true;
+                        WarnBridge("Overhaul version "+version+" incompatible; exact 0.22.65 required.");
+                        return false;
+                    }
+                    assembly=plugin.Instance.GetType().Assembly;
                 }
-                string version=plugin.Metadata.Version.ToString();
-                if(version!=RequiredVersion)
+                // Can execute during the loading phase, before PluginInfos has
+                // registered every plugin. Resolve from the loaded CLR types.
+                Type catalog=assembly?.GetType("Sirro.PracaFizyczna.MaterialCatalog",false)
+                    ?? AccessTools.TypeByName("Sirro.PracaFizyczna.MaterialCatalog");
+                Type visual=assembly?.GetType("Sirro.PracaFizyczna.WolfVisuals",false)
+                    ?? AccessTools.TypeByName("Sirro.PracaFizyczna.WolfVisuals");
+                if(catalog==null || visual==null)
                 {
-                    DeguPlugin.Log?.LogError("DEGU_APPEARANCE: incompatible Overhaul "+version+
-                        " (expected "+RequiredVersion+"). ZDO assignment remains active.");
-                    return;
+                    WarnBridge("MaterialCatalog / WolfVisuals type not loaded yet.");
+                    return false;
                 }
-                Assembly assembly=plugin.Instance.GetType().Assembly;
-                Type catalog=assembly.GetType("Sirro.PracaFizyczna.MaterialCatalog",true);
-                Type variant=assembly.GetType("Sirro.PracaFizyczna.Variant",true);
-                Type visual=assembly.GetType("Sirro.PracaFizyczna.WolfVisuals",true);
-                inheritedAssignment=assembly.GetType("Sirro.PracaFizyczna.SkinAssignment",false);
-                variants=AccessTools.Field(catalog,"Variants");
-                materialField=AccessTools.Field(variant,"Main");
+                if(catalog.Assembly!=visual.Assembly)
+                {
+                    WarnBridge("MaterialCatalog and WolfVisuals are from different assemblies.");
+                    return false;
+                }
+                var catalogVariants=AccessTools.Field(catalog,"Variants");
+                var eyeShader=AccessTools.Method(visual,"ApplyProperties");
+                if(catalogVariants==null || eyeShader==null)
+                {
+                    WarnBridge("Overhaul 0.22.65 has no Variants or ApplyProperties.");
+                    return false;
+                }
+                variants=catalogVariants;
+                applyProperties=eyeShader;
                 assign=AccessTools.Method(catalog,"Assign");
-                applyProperties=AccessTools.Method(visual,"ApplyProperties");
-                if(variants==null || materialField==null || assign==null || applyProperties==null)
-                    throw new MissingMemberException("Required Overhaul 0.22.65 appearance API missing.");
+                inheritedAssignment=AccessTools.TypeByName("Sirro.PracaFizyczna.SkinAssignment");
                 CanRender=true;
-                DeguPlugin.Log?.LogInfo("DEGU_APPEARANCE: independent ZDO randomizer + Wolf material adapter ready (Overhaul "+version+").");
+                lastFailure=null;
+                DeguPlugin.Log?.LogInfo(
+                    "DEGU_APPEARANCE: Wolf material bridge connected; coat=Wolf[0..6], eye=1..6, emissive=WolfVisuals.");
+                return true;
             }
-            catch(Exception e)
+            catch(Exception ex)
             {
-                CanRender=false;
-                DeguPlugin.Log?.LogError("DEGU_APPEARANCE: material adapter FAILED (ZDO randomizer still works): "+e);
+                WarnBridge("resolving Overhaul bridge: "+ex.GetBaseException().Message);
+                return false;
             }
+        }
+
+        private static void WarnBridge(string reason)
+        {
+            if(lastFailure==reason)return;
+            lastFailure=reason;
+            DeguPlugin.Log?.LogWarning("DEGU_APPEARANCE bridge: "+reason);
         }
 
         internal static void RegisterPrefab(GameObject prefab)
@@ -93,39 +131,70 @@ namespace SirrohDegu
         // callers then retry without changing persisted cosmetic choices.
         internal static bool ApplyVisual(GameObject obj,int coat,int eye,int element)
         {
-            if(!CanRender || SystemInfo.graphicsDeviceType==UnityEngine.Rendering.GraphicsDeviceType.Null)
+            if(SystemInfo.graphicsDeviceType==UnityEngine.Rendering.GraphicsDeviceType.Null)
                 return false;
+            if(!TryResolveMaterials())return false;
             SkinnedMeshRenderer skin=Visible(obj);
-            if(!skin || skin.sharedMesh==null)return false;
+            if(!skin || !skin.sharedMesh)return false;
             try
             {
                 var all=variants.GetValue(null) as IDictionary;
                 var coats=all==null?null:all["Wolf"] as Array;
-                if(coats==null || coats.Length<7)return false;
+                if(coats==null || coats.Length<7)
+                {
+                    WarnBridge("Wolf[7] variant array not ready; waiting for native Overhaul FurRandomizer.Load.");
+                    return false;
+                }
                 coat=Mathf.Clamp(coat,0,6);
                 object selected=coats.GetValue(coat);
-                Material material=selected==null?null:materialField.GetValue(selected) as Material;
-                if(!material)return false;
-                // Use exact native wolf materials, shaders, texture palettes and
-                // emission maps. Do not generate new materials per spawn.
-                assign.Invoke(null,new object[]{skin,0,material,true});
-                assign.Invoke(null,new object[]{skin,1,material,true});
+                if(selected==null)
+                {
+                    WarnBridge("Wolf variant "+coat+" is absent from the bundled materials.");
+                    return false;
+                }
+                // Inspect the actual Variant instance instead of depending on
+                // a second private type lookup at plugin Awake.
+                var main=selected.GetType().GetField("Main",
+                    BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public);
+                Material material=main?.GetValue(selected) as Material;
+                if(!material)
+                {
+                    WarnBridge("Wolf material for coat "+coat+" has not loaded.");
+                    return false;
+                }
+                Material[] slots=skin.sharedMaterials;
+                if(slots==null || slots.Length<2)
+                {
+                    WarnBridge("Degu stable renderer lacks two coat/eye submeshes.");
+                    return false;
+                }
+                // Reuse the exact materials that native Wolf Fur Randomizer
+                // already loaded; do not invent replacement tints or textures.
+                // The native Assign method also performs the Wolf shader and
+                // emission preparation where available.
+                if(assign!=null)
+                {
+                    assign.Invoke(null,new object[]{skin,0,material,true});
+                    assign.Invoke(null,new object[]{skin,1,material,true});
+                }
+                else
+                {
+                    slots[0]=material;
+                    slots[1]=material;
+                    skin.sharedMaterials=slots;
+                }
                 applyProperties.Invoke(null,new object[]{skin,material,
                     Mathf.Clamp(eye,0,6),Mathf.Clamp(element,0,5)});
-                // Degu's eye polygons are submesh 1; the Overhaul routines
-                // write to submesh 0. Copy the complete property block.
+                // Wolf's shader writes overrides to submesh 0. Degu eyes are
+                // submesh 1, so mirror complete eye/emission properties.
                 var block=new MaterialPropertyBlock();
                 skin.GetPropertyBlock(block,0);
                 skin.SetPropertyBlock(block,1);
                 return true;
             }
-            catch(Exception e)
+            catch(Exception ex)
             {
-                if(!warned)
-                {
-                    warned=true;
-                    DeguPlugin.Log?.LogError("DEGU_APPEARANCE: material apply exception: "+e.GetBaseException());
-                }
+                WarnBridge("applying Wolf coat/eyes: "+ex.GetBaseException().Message);
                 return false;
             }
         }
