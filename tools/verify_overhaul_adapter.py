@@ -1,4 +1,4 @@
-"""Regression contracts for Degu 0.3.3 independent appearance pipeline.
+"""Regression contracts for Degu 0.3.4 independent appearance pipeline.
 
 Static checks cannot replace Valheim runtime, but catch accidental coupling
 between wild randomization, Overhaul menu patches and prefab construction.
@@ -120,9 +120,9 @@ assert '<EmbeddedResource Include="Assets/Icons/Degu.png" LogicalName="SirrohDeg
 print("PASS original Degu compass icon unchanged")
 
 manifest=Path("manifest.json").read_text()
-assert '"version_number": "0.3.3"' in manifest
-assert '"0.3.3"' in plugin
-print("PASS 0.3.3 source, manifest and reproducibility contracts")
+assert '"version_number": "0.3.4"' in manifest
+assert '"0.3.4"' in plugin
+print("PASS 0.3.4 source, manifest and reproducibility contracts")
 
 trace=Path("src/DeguBindposeTrace.cs").read_text()
 for token in ("OnUnityLog(", "BeforeSpawn(", "AfterSpawn(", "AfterPrefab(",
@@ -144,6 +144,20 @@ print("PASS Degu renderer staged disabled and activated after all Unity Awake ca
 
 # Version ledger must explicitly distinguish expected changes from runtime success.
 ledger=Path("update.md").read_text()
-assert "0.3.3" in ledger and "NIEPOTWIERDZONE" in ledger
+assert "0.3.4" in ledger and "NIEPOTWIERDZONE" in ledger
 assert "Wolf" in ledger and "Tresura" in ledger
 print("PASS source-code audit and version-by-version update.md ledger")
+
+# Native Overhaul 0.22.65 API contract (cross-checked with upstream source).
+assert 'Patch(taming,"OnStatus",nameof(BeforeStatus),true,false);' in menu
+assert 'Patch(taming,"OnAnswer",nameof(AfterAdopt),false,true);' in menu
+assert 'Patch(taming,"OnAdoptReply",' not in menu # invented method does not exist
+assert 'HydrateExistingOwnedDegu(' in menu
+assert 'pet.GetLong(OwnerKey,0L)!=Player.m_localPlayer.GetPlayerID()' in menu
+assert 'RecoverExistingVisibleOwnedPets()' in menu
+assert 'slotCountNative' in menu
+assert 'ids.Add(zdo.m_uid);' in menu
+assert 'saveNative.Invoke(null,new object[]{player});' in menu
+assert 'template.name!="Degu"' in menu
+assert 'material.shader=' not in service
+print("PASS native adoption/status hook API, owner-gated recovery, no shared Wolf material mutation")
