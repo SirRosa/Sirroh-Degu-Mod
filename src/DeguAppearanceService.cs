@@ -211,7 +211,12 @@ namespace SirrohDegu
                 if(applyProperties==null)TryResolveMaterials();
                 return true;
             }
-            if(!TryResolveMaterials())return false;
+            bool wolfVisualBridge=TryResolveMaterials();
+            // A standalone Fur Randomizer can still provide real Wolf coats
+            // if Overhaul's optional reflection bridge is temporarily absent.
+            if(!wolfVisualBridge &&
+               !Chainloader.PluginInfos.ContainsKey("sirroh.furrandomizer"))
+                return false;
             selectedWolfMaterials=null;
             selectedCatalog=null;
             selectedAssign=null;
