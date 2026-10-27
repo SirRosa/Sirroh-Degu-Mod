@@ -126,7 +126,7 @@ namespace SirrohDegu
         {
             Player player=Player.m_localPlayer;
             if(!player || !Alive(info) || GetId(info)==ZDOID.None ||
-                !ZRoutedRpc.instance)return false;
+                ZRoutedRpc.instance==null)return false;
             ZNetView playerView=player.GetComponent<ZNetView>();
             if(!playerView || !playerView.IsValid())return false;
             try
