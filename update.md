@@ -95,3 +95,9 @@ Każdy kolejny commit zmiany: dopisać do update.md datę/wersję, zmodyfikowane
 **Cel:** najpierw prawdziwe warianty Wilka na Degu i przywrócona lista Tresury; następnie działające 7/6 wyborów, runy od poziomu 25, poprawny preview, brak bindpose, neutralne AI i spawn 3–7.
 
 **Wyniki testów:** kompilacja/QA 0.4.0 = DO WERYFIKACJI, wynik Valheim runtime = NIEPRZETESTOWANE. Nie wolno oznaczać żadnej wymaganej funkcji jako PASS tylko na podstawie CI. Nie modyfikować Overhaul ani oryginalnego main.
+
+### 0.4.0 — wynik kompilacji (2026-10-27)
+- **Przebiegi CI:** pierwszy run #40577042694 FAIL w błędnym asercie statycznym sprawdzającym tekst komentarza. Kolejna kompilacja #40577428870 FAIL — brak bezpośredniej referencji do UnityEngine.AssetBundleModule. Poprawiono test i dołączono oryginalną bibliotekę Unity AssetBundleModule z Valheim do csproj + GitHub Actions. Run #40578088376 dla commita `aa6d0d6abdf231af7713f6382eb9a4c4ba45cb51` **SUCCESS**: testy kontraktów modułów, kompilacja net48, Blender QA oraz skinning QA.
+- **Weryfikacja paczki:** `SirRosa-SirrohDegu-0.4.0.zip` 85030 bajtów, SHA-256 `ce93476596e9097503dbca2d3e981f5f9b0d96db7ab98c1899fcb14d9a5cfbb9`, prawidłowy ZIP i manifest 0.4.0; SirrohDegu.dll 108544 bajty. Kontrola ciągów nazw modułów w DLL: nowe `DeguWolfPalette`, `DeguFamiliarBridge`, `DeguPreviewBridge` są obecne; `DeguAppearanceService`, `DeguFamiliarRepair`, `DeguBindposeTrace` nie występują. **Nie jest to dowód funkcjonalnego uruchomienia w grze.**
+- **Wynik Valheim:** NIEPRZETESTOWANE. Nie oznaczać futra, oczu, Tresury, emissive, podglądu ani synchronizacji jako naprawionych tylko na podstawie kompilacji. Dopiero test graficzny/wielu graczy pozwoli na PASS lub FAIL.
+- **Bezpieczeństwo zmian:** `main` i oryginalne źródła DeguWorld, DeguMesh, DeguRigDriver, assety użytkownika i Sirroh Overhaul nie były modyfikowane. PR #6 (nieudana wersja 0.3.4) zamknięty, PR #7 pozostaje draft.
