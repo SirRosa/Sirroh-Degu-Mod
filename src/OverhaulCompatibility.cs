@@ -24,7 +24,7 @@ namespace SirrohDegu
         private const string ElementKey = "sirroh.pet.element.v1";
         private const string RuneKey = "sirroh.wolf.showrunes.v1";
 
-        private static Harmony patches;
+        private static Harmony patches, uiPatches;
         private static FieldInfo variantsField, mainField;
         private static Type inheritedSkinAssignment;
         private static MethodInfo assign, wolfApply, applyProperties, ensureEye, tryApply;
@@ -45,37 +45,74 @@ namespace SirrohDegu
             return method;
         }
 
+        // Split the authoritative wild appearance adapter from optional menu
+        // Harmony integrations. A failed menu transpiler must NEVER turn off
+        // wild Degu fur/eyes or prevent DeguVariantAssignment registration.
         internal static void Install()
         {
-            if (!Chainloader.PluginInfos.TryGetValue(PluginId, out var plugin)) return;
-            if (plugin.Metadata.Version.ToString() != SupportedVersion)
+            if (!Chainloader.PluginInfos.TryGetValue(PluginId, out var plugin))
             {
-                DeguPlugin.Log?.LogWarning("Overhaul compatibility disabled: only exact v" +
-                    SupportedVersion + " is supported; installed " + plugin.Metadata.Version);
+                DeguPlugin.Log?.LogWarning("Degu appearance: Overhaul plugin not loaded.");
+                return;
+            }
+            if (plugin.Metadata.Version.ToString()!=SupportedVersion)
+            {
+                DeguPlugin.Log?.LogWarning("Degu appearance disabled: exact Overhaul "+
+                    SupportedVersion+" required, found "+plugin.Metadata.Version);
+                return;
+            }
+            Assembly assembly=plugin.Instance.GetType().Assembly;
+            try
+            {
+                Type catalog=Required("MaterialCatalog",assembly);
+                Type visuals=Required("WolfVisuals",assembly);
+                inheritedSkinAssignment=Required("SkinAssignment",assembly);
+                Type variant=Required("Variant",assembly);
+                variantsField=AccessTools.Field(catalog,"Variants");
+                mainField=AccessTools.Field(variant,"Main");
+                if(variantsField==null || mainField==null)
+                    throw new MissingMemberException("MaterialCatalog.Variants / Variant.Main");
+                assign=RequiredMethod(catalog,"Assign");
+                wolfApply=RequiredMethod(visuals,"Apply");
+                applyProperties=RequiredMethod(visuals,"ApplyProperties");
+                ensureEye=RequiredMethod(visuals,"EnsureEye");
+                tryApply=RequiredMethod(catalog,"TryApply");
+                var count=RequiredMethod(catalog,"Count");
+                var display=RequiredMethod(catalog,"DisplayName");
+                var texture=RequiredMethod(catalog,"PreviewTexture");
+                var random=RequiredMethod(catalog,"RandomIndex");
+                var supported=RequiredMethod(catalog,"IsSupported");
+                var valid=RequiredMethod(catalog,"IsValid");
+
+                // Core lifecycle: no dependence on fragile UI string-compare IL.
+                patches=new Harmony("sirroh.degu.appearance.v030");
+                foreach(MethodInfo target in new[]{count,display,texture,valid})
+                    patches.Patch(target,prefix:new HarmonyMethod(
+                        AccessTools.Method(typeof(OverhaulCompatibility),nameof(AliasSpecies))));
+                patches.Patch(random,prefix:new HarmonyMethod(
+                    AccessTools.Method(typeof(OverhaulCompatibility),nameof(AliasAnimal))));
+                patches.Patch(supported,postfix:new HarmonyMethod(
+                    AccessTools.Method(typeof(OverhaulCompatibility),nameof(SupportedDegu))));
+                patches.Patch(tryApply,prefix:new HarmonyMethod(
+                    AccessTools.Method(typeof(OverhaulCompatibility),nameof(ApplyDeguPrefix))));
+                Enabled=true;
+                DeguPlugin.Log?.LogInfo("Degu appearance core ACTIVE: 7 wild coats / 6 eyes / ZDO; UI errors cannot disable it.");
+            }
+            catch(Exception e)
+            {
+                Enabled=false;
+                patches?.UnpatchSelf();
+                patches=null;
+                DeguPlugin.Log?.LogError("Degu appearance core FAILED: "+e);
                 return;
             }
             try
             {
-                Assembly assembly = plugin.Instance.GetType().Assembly;
-                Type catalog = Required("MaterialCatalog", assembly);
-                Type visuals = Required("WolfVisuals", assembly);
-                Type taming = Required("TamingSkill", assembly);
-                Type panel = Required("FamiliarMenuPanel", assembly);
-                Type preview = Required("FamiliarModelPreview", assembly);
-                inheritedSkinAssignment = Required("SkinAssignment", assembly);
-                variantsField = AccessTools.Field(catalog, "Variants");
-                if (variantsField == null) throw new MissingFieldException(catalog.FullName, "Variants");
-                Type variant = Required("Variant", assembly);
-                mainField = AccessTools.Field(variant, "Main");
-                if (mainField == null) throw new MissingFieldException(variant.FullName, "Main");
-                assign = RequiredMethod(catalog, "Assign");
-                wolfApply = RequiredMethod(visuals, "Apply");
-                applyProperties = RequiredMethod(visuals, "ApplyProperties");
-                ensureEye = RequiredMethod(visuals, "EnsureEye");
-                tryApply = RequiredMethod(catalog, "TryApply");
-
-                // Preflight EVERY method before installing any Harmony patch.
-                var wolfChecks = new[] {
+                Type visuals=Required("WolfVisuals",assembly);
+                Type taming=Required("TamingSkill",assembly);
+                Type panel=Required("FamiliarMenuPanel",assembly);
+                Type preview=Required("FamiliarModelPreview",assembly);
+                var checks=new[]{
                     RequiredMethod(taming,"ChooseEyeColor"),
                     RequiredMethod(taming,"ToggleElementRunes"),
                     RequiredMethod(taming,"Capture"),
@@ -84,59 +121,39 @@ namespace SirrohDegu
                     RequiredMethod(panel,"UpdateDetail"),
                     RequiredMethod(preview,"Show")
                 };
-                var count = RequiredMethod(catalog,"Count");
-                var display = RequiredMethod(catalog,"DisplayName");
-                var texture = RequiredMethod(catalog,"PreviewTexture");
-                var random = RequiredMethod(catalog,"RandomIndex");
-                var supported = RequiredMethod(catalog,"IsSupported");
-                var valid = RequiredMethod(catalog,"IsValid");
-                var previewVisuals = RequiredMethod(visuals,"ApplyPreview");
-
-                patches = new Harmony("sirroh.degu.overhaul.v02265");
-                foreach (MethodInfo target in wolfChecks)
-                    patches.Patch(target, transpiler: new HarmonyMethod(
-                        AccessTools.Method(typeof(OverhaulCompatibility), nameof(AllowDeguChecks))));
-                foreach (MethodInfo target in new[]{count,display,texture})
-                    patches.Patch(target, prefix: new HarmonyMethod(
-                        AccessTools.Method(typeof(OverhaulCompatibility),nameof(AliasSpecies))));
-                patches.Patch(random, prefix: new HarmonyMethod(
-                    AccessTools.Method(typeof(OverhaulCompatibility),nameof(AliasAnimal))));
-                patches.Patch(supported, postfix: new HarmonyMethod(
-                    AccessTools.Method(typeof(OverhaulCompatibility),nameof(SupportedDegu))));
-                // IsValid is used by native preview and server-side coat checks.
-                // The original catalog has no Degu entry even when Count is aliased.
-                patches.Patch(valid, prefix: new HarmonyMethod(
-                    AccessTools.Method(typeof(OverhaulCompatibility),nameof(AliasSpecies))));
-                patches.Patch(tryApply, prefix: new HarmonyMethod(
-                    AccessTools.Method(typeof(OverhaulCompatibility),nameof(ApplyDeguPrefix))));
-                patches.Patch(previewVisuals, prefix: new HarmonyMethod(
+                var applyPreview=RequiredMethod(visuals,"ApplyPreview");
+                var copy=RequiredMethod(preview,"CopyRenderers");
+                uiPatches=new Harmony("sirroh.degu.menu.preview.v030");
+                foreach(MethodInfo target in checks)
+                    uiPatches.Patch(target,transpiler:new HarmonyMethod(
+                        AccessTools.Method(typeof(OverhaulCompatibility),nameof(AllowDeguChecks))));
+                uiPatches.Patch(applyPreview,prefix:new HarmonyMethod(
                     AccessTools.Method(typeof(OverhaulCompatibility),nameof(DeguPreviewPrefix))));
-                patches.Patch(RequiredMethod(preview,"CopyRenderers"),
-                    prefix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewDiagnostics),"CopyRenderers")));
-                // The native preview skips ApplyPreview when the familiar is
-                // not loaded in the scene. Apply saved Degu eyes/runes even then.
-                patches.Patch(RequiredMethod(preview,"Show"),
+                uiPatches.Patch(copy,prefix:new HarmonyMethod(
+                    AccessTools.Method(typeof(DeguPreviewDiagnostics),"CopyRenderers")));
+                uiPatches.Patch(RequiredMethod(preview,"Show"),
                     postfix:new HarmonyMethod(AccessTools.Method(typeof(OverhaulCompatibility),nameof(AfterDeguPreviewShow))));
-                patches.Patch(RequiredMethod(panel,"UpdateDetail"),
+                uiPatches.Patch(RequiredMethod(panel,"UpdateDetail"),
                     prefix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewDiagnostics),"BeforeDetail")),
                     postfix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewDiagnostics),"AfterDetail")));
-                Enabled = true;
-                DeguPlugin.Log?.LogInfo("Overhaul v0.22.65 adapter active: IsValid+Count+TryApply Degu aliases, 7 coats, 6 eyes, runes and Tresura.");
+                DeguPlugin.Log?.LogInfo("Degu Tresura + 3D preview hooks ACTIVE.");
             }
-            catch (Exception exception)
+            catch(Exception e)
             {
-                Enabled = false;
-                if (patches != null) patches.UnpatchSelf();
-                patches = null;
-                DeguPlugin.Log?.LogError("Overhaul compatibility disabled; failed preflight/patch: " + exception);
+                uiPatches?.UnpatchSelf();
+                uiPatches=null;
+                DeguPlugin.Log?.LogError(
+                    "Degu optional Tresura/preview hooks FAILED (wild cosmetics still active): "+e);
             }
         }
 
         internal static void Shutdown()
         {
-            Enabled = false;
-            if (patches != null) patches.UnpatchSelf();
-            patches = null;
+            Enabled=false;
+            uiPatches?.UnpatchSelf();
+            uiPatches=null;
+            patches?.UnpatchSelf();
+            patches=null;
         }
 
         internal static void AfterDeguRegistered(GameObject prefab)
