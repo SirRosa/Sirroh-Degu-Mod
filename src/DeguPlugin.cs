@@ -32,6 +32,7 @@ namespace SirrohDegu
             DeguAppearanceService.Install();
             DeguCompassIcon.Register(_patches);
             DeguFamiliarRepair.Install();
+            DeguPreviewDiagnostics.Install();
             Logger.LogInfo("Sirroh Degu v0.3.1 loaded. Waiting for ZNetScene prefab registry.");
         }
 
@@ -40,6 +41,7 @@ namespace SirrohDegu
             // Appearance service owns no Harmony patches.
             DeguCompassIcon.Shutdown();
             DeguFamiliarRepair.Shutdown();
+            DeguPreviewDiagnostics.Shutdown();
             if (_patches != null) _patches.UnpatchSelf();
             if (_prefabHolder != null) UnityEngine.Object.Destroy(_prefabHolder);
             _prefabHolder = null;
