@@ -5,7 +5,15 @@ plugin=Path("src/DeguPlugin.cs").read_text()
 world=Path("src/DeguWorld.cs").read_text()
 assert 'SupportedVersion = "0.22.65"' in bridge
 assert 'Chainloader.PluginInfos.TryGetValue' in bridge
-assert 'patches.UnpatchSelf()' in bridge
+assert 'patches?.UnpatchSelf()' in bridge
+assert 'uiPatches?.UnpatchSelf()' in bridge
+assert 'var valid=RequiredMethod(catalog,"IsValid");' in bridge
+assert 'foreach(MethodInfo target in new[]{count,display,texture,valid})' in bridge
+assert bridge.index("Enabled=true;") < bridge.index('uiPatches=new Harmony(')
+assert 'AfterDeguPreviewShow' in bridge
+assert 'applyProperties.Invoke(null,new object[]{' in bridge
+assert 'showRunes && level>=25' in bridge
+print("PASS required Degu-only IsValid alias and independent wild appearance core")
 for entry in ("ChooseEyeColor","ToggleElementRunes","Capture","SyncFamiliar","HandleLifecycleRequest","UpdateDetail","Show","ApplyPreview"):
     assert '"'+entry+'"' in bridge,entry
 for entry in ("IsSupported","Count","DisplayName","PreviewTexture","RandomIndex","TryApply"):
@@ -80,3 +88,17 @@ assert "DeguFamiliarRepair.Shutdown();" in plugin
 assert "new WaitForSeconds(1f)" in bridge
 assert "skin!=lastSkin || nextEye!=lastEye" in bridge
 print("PASS Degu controls/RPC validation, persistence and reactive live appearance")
+
+# Git blob invariants pin confirmed v0.2.5 systems. Never change AI,
+# original mesh, rig driver, or eye glow to fix Tresura.
+import subprocess
+frozen={
+    "src/DeguWorld.cs":"c8c5294b65bec39d88ad5cabd2068f1d3cd886e9",
+    "src/DeguMesh.cs":"4f828216dfa5eaf2dc075956b59dfa8769223575",
+    "src/DeguRigDriver.cs":"72cb05dfde8d02b2ff4e3e523cdc7b82ba0232c5",
+    "src/DeguEyeEmission.cs":"f0bf96db0577dcb01d2b9246fcabf5330b791fee",
+}
+for path,expected in frozen.items():
+    actual=subprocess.check_output(["git","hash-object",path],text=True).strip()
+    assert actual==expected, "Frozen baseline changed: "+path+" "+actual
+print("PASS frozen 0.2.5 AI, mesh, rig and eye-glow sources")
