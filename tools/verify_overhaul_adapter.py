@@ -80,3 +80,16 @@ assert "DeguFamiliarRepair.Shutdown();" in plugin
 assert "new WaitForSeconds(1f)" in bridge
 assert "skin!=lastSkin || nextEye!=lastEye" in bridge
 print("PASS Degu controls/RPC validation, persistence and reactive live appearance")
+
+# Runtime A/B audit must be observational: preserve baseline randomizer and world code.
+audit=Path("src/DeguRuntimeAudit.cs").read_text()
+for method in ("ReportPrefab(", "ReportSpawn(", "OnUnityLog(", "Fingerprint("):
+    assert method in audit,method
+assert "furRandomizerSetActive" in audit and "sirroh.wolf.eye.v1" in audit
+assert "DeguRuntimeAudit.Install();" in plugin
+assert "DeguRuntimeAudit.Shutdown();" in plugin
+assert "DeguRuntimeAudit.ReportPrefab(" in plugin
+assert "DeguRuntimeAudit.ReportSpawn(" in plugin
+for forbidden in ("zdo.Set(", "pet.Set(", "renderer.sharedMesh =", "skin.sharedMesh =", "AddComponent<", "Random.Range(", ".Patch("):
+    assert forbidden not in audit,"Audit must not write world state: "+forbidden
+print("PASS read-only runtime A/B diagnostics; no RNG, ZDO writes, renderer changes, Harmony patches")
