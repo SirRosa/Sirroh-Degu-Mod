@@ -13,17 +13,30 @@ namespace SirrohDegu
         private static string lastState;
 
         private static Harmony patches;
+        private static string lastFailure;
         internal static void Install()
         {
-            if(!Chainloader.PluginInfos.TryGetValue("sirro.valheim.pracafizyczna",out var p) ||
-                p.Metadata.Version.ToString()!="0.22.65")
-            {
-                DeguPlugin.Log?.LogWarning("DEGU_PREVIEW: exact Overhaul 0.22.65 not found; preview hooks disabled.");
-                return;
-            }
+            if(patches!=null)return;
             try
             {
-                var assembly=p.Instance.GetType().Assembly;
+                Assembly assembly=null;
+                if(Chainloader.PluginInfos.TryGetValue("sirro.valheim.pracafizyczna",out var p))
+                {
+                    Version v=p.Metadata.Version;
+                    if(v.Major!=0 || v.Minor!=22 || v.Build!=65)
+                    {
+                        ReportFailure("Overhaul version "+v+" differs from 0.22.65");
+                        return;
+                    }
+                    assembly=p.Instance.GetType().Assembly;
+                }
+                if(assembly==null)
+                    assembly=AccessTools.TypeByName("Sirro.PracaFizyczna.FamiliarModelPreview")?.Assembly;
+                if(assembly==null)
+                {
+                    ReportFailure("Overhaul FamiliarModelPreview not loaded yet");
+                    return;
+                }
                 var type=assembly.GetType("Sirro.PracaFizyczna.FamiliarModelPreview",true);
                 var panel=assembly.GetType("Sirro.PracaFizyczna.FamiliarMenuPanel",true);
                 var copy=AccessTools.Method(type,"CopyRenderers");
@@ -46,8 +59,14 @@ namespace SirrohDegu
             {
                 patches?.UnpatchSelf();
                 patches=null;
-                DeguPlugin.Log?.LogError("DEGU_PREVIEW: patch failed (wild variants unaffected): "+e);
+                ReportFailure("patch: "+e.GetBaseException());
             }
+        }
+        private static void ReportFailure(string reason)
+        {
+            if(lastFailure==reason)return;
+            lastFailure=reason;
+            DeguPlugin.Log?.LogWarning("DEGU_PREVIEW unavailable: "+reason);
         }
         internal static void Shutdown()
         {
