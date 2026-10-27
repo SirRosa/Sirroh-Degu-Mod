@@ -113,6 +113,10 @@ namespace SirrohDegu
                     AccessTools.Method(typeof(OverhaulCompatibility),nameof(DeguPreviewPrefix))));
                 patches.Patch(RequiredMethod(preview,"CopyRenderers"),
                     prefix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewDiagnostics),"CopyRenderers")));
+                // The native preview skips ApplyPreview when the familiar is
+                // not loaded in the scene. Apply saved Degu eyes/runes even then.
+                patches.Patch(RequiredMethod(preview,"Show"),
+                    postfix:new HarmonyMethod(AccessTools.Method(typeof(OverhaulCompatibility),nameof(AfterDeguPreviewShow))));
                 patches.Patch(RequiredMethod(panel,"UpdateDetail"),
                     prefix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewDiagnostics),"BeforeDetail")),
                     postfix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewDiagnostics),"AfterDetail")));
@@ -267,6 +271,40 @@ namespace SirrohDegu
             }
             catch (Exception e) { WarnOnce("Degu preview apply: "+e.GetBaseException().Message); }
             return false;
+        }
+
+        // Read-only, Degu-only preview completion for both loaded and unloaded
+        // familiars. Never changes world creatures, ZDO or shared materials.
+        private static void AfterDeguPreviewShow(object __instance,
+            string prefab, ZDOID petId, int eyeColor, bool showRunes)
+        {
+            if (!Enabled || !Degu(prefab) || __instance==null) return;
+            try
+            {
+                Type type=__instance.GetType();
+                var visual=type.GetField("_visual",BindingFlags.Instance|BindingFlags.NonPublic)
+                    ?.GetValue(__instance) as GameObject;
+                var renderer=Visible(visual);
+                if (!renderer || !renderer.sharedMaterial) return;
+                ZDO zdo=ZDOMan.instance?.GetZDO(petId);
+                int chosenEye=eyeColor>=1 && eyeColor<=6?eyeColor:
+                    zdo==null?0:Mathf.Clamp(zdo.GetInt(EyeKey,0),0,6);
+                int level=zdo==null?1:zdo.GetInt(LevelKey,1);
+                int element=zdo!=null && showRunes && level>=25?
+                    Mathf.Clamp(zdo.GetInt(ElementKey,0),0,5):0;
+                applyProperties.Invoke(null,new object[]{
+                    renderer,renderer.sharedMaterial,chosenEye,element
+                });
+                CopyEyeSubmesh(renderer);
+                // Show() already rendered the RT; update it with the current
+                // eye/emission overrides without instantiating a Character.
+                type.GetMethod("Render",BindingFlags.Instance|BindingFlags.NonPublic)
+                    ?.Invoke(__instance,null);
+            }
+            catch(Exception e)
+            {
+                WarnOnce("Degu preview final appearance: "+e.GetBaseException().Message);
+            }
         }
 
         internal static int ChooseCoat() => UnityEngine.Random.Range(0,7);
