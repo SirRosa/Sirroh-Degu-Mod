@@ -12,9 +12,9 @@ spawn Degu
 
 ## Instalacja
 
-**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.2.5.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
+**Thunderstore / r2modman:** pobierz `release/SirRosa-SirrohDegu-0.2.9.zip` i wybierz **Settings → Profile → Import local mod** (bez ręcznego rozpakowywania). Archiwum zawiera w katalogu głównym `manifest.json`, `icon.png` (256 × 256), `README.md` oraz `SirrohDegu.dll`.
 
-**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.2.5.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
+**Instalacja ręczna:** rozpakuj `release/SirrohDegu-0.2.9.zip` i skopiuj DLL do `BepInEx/plugins/SirrohDegu/`. Wymagany **BepInExPack Valheim 5.4.2351**. Mod musi znajdować się na kliencie i na hoście/serwerze, gdyż rejestruje sieciowy prefab.
 
 Model pochodzi z `Degu.blend` i zawiera wagi dla 34 kości kompatybilnych nazwami z oryginalnym wilkiem. Żaden skrypt odpowiedzialny za zachowanie wilka nie jest zastępowany.
 
@@ -183,3 +183,13 @@ Oryginalna, przesłana przez użytkownika ikona PNG 96×96 RGBA jest osadzona w 
 ## v0.2.5 — naprawa Tresury Degu
 
 Niezależny, ograniczony do Sirroh Overhaul 0.22.65 adapter obsługuje wszystkie poziomy zmiany wyglądu Koszatniczki: 7 skór, 6 kolorów oczu, 16 kolorów imienia i runy od poziomu 25. Ustawienia w menu są odblokowywane dla żywych Degu, klient wysyła oryginalne żądania Tresury, a serwer weryfikuje tożsamość, przynależność chowańca do zatwierdzonej listy i zakresy wartości przed zapisem ZDO. Żywe Degu odświeżają materiały wyłącznie po zmianie danych wyglądu. Kod Overhaul nie jest modyfikowany. Działanie runtime musi zostać sprawdzone w grze.
+
+## v0.2.9 — testowe poprawki, baza 0.2.5
+
+Krytyczne funkcje **bez zmian źródłowych**: `DeguWorld.cs`, `OverhaulCompatibility.cs`, `DeguMesh.cs`, `DeguRigDriver.cs`, `DeguEyeEmission.cs` i wszystkie `Assets/`. Ich oryginalne hashe z 0.2.5 są automatycznie sprawdzane przed buildem. Nie zmieniono żadnego mechanizmu naturalnego spawnu, frakcji i neutralnego AI, losowych futer/oczu dzikich Degu, wag, riggingu, animacji ani tekstur.
+
+- Menu chowańców: odczyt rzeczywistego żywego i oswojonego Degu po identycznym ZDOID i właścicielu, jeśli rekord `Alive` jest przestarzały. Nie wolno odblokować chowańca martwego lub obcego. Stan lokalny wybranego futra, oczu, imienia i runów aktualizuje się dopiero po prawidłowym wywołaniu natywnej metody wysłania RPC; nie jest to jeszcze potwierdzenie serwera.
+- Podgląd 3D: pełny test mapowania kości przed przydzieleniem renderera, brak zastępczych transformacji, tworzenie komponentu na nieaktywnym obiekcie i przypisywanie kości przed meshem.
+- Model `.blend` nie jest automatycznie podmieniany podczas publikowania wersji; nadal testowany w Blenderze.
+
+**Status:** GitHub Actions weryfikuje kompilację i testy statyczne, nie rozgrywkę Valheim. Obecna wersja 0.2.9 wymaga testu na kliencie i serwerze razem z niezmienionym Sirroh Overhaul 0.22.65. Zniknięcie ostrzeżenia bindpose oraz skuteczność zmian wyglądu w menu należy potwierdzić w grze.
