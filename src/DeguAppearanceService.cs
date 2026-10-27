@@ -403,8 +403,19 @@ namespace SirrohDegu
                         appliedEye=eye;
                         appliedElement=element;
                         if(!notified)
-                            DeguPlugin.Log?.LogInfo("DEGU_APPEARANCE: first applied id="+zdo.m_uid+
-                                " owner="+owner+" coat="+coat+" eye="+eye+" element="+element);
+                        {
+                            var r=DeguAppearanceService.Visible(gameObject);
+                            Material m=r?r.sharedMaterials[0]:null;
+                            var state=new MaterialPropertyBlock();
+                            if(r)r.GetPropertyBlock(state,0);
+                            Texture eyeTex=state.GetTexture("_MainTex");
+                            DeguPlugin.Log?.LogInfo("DEGU_APPEARANCE: APPLIED id="+zdo.m_uid+
+                                " owner="+owner+" coat="+coat+" eye="+eye+" element="+element+
+                                " material="+(m?m.name:"missing")+
+                                " atlas="+(m && m.mainTexture?m.mainTexture.name:"missing")+
+                                " eyeAtlas="+(eyeTex?eyeTex.name:"missing")+
+                                " shader="+(m && m.shader?m.shader.name:"missing"));
+                        }
                     }
                     else if(!notified)
                     {
