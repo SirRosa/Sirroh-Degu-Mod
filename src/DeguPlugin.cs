@@ -82,6 +82,18 @@ namespace SirrohDegu
                 {
                     Log?.LogInfo("Degu(Clone): ZNetView.Awake executed (runtime spawn initialized).");
                     DeguBindposeTrace.AfterSpawn(__instance);
+                    var skin=DeguAppearanceService.Visible(__instance.gameObject);
+                    if(!skin || !skin.sharedMesh || !skin.rootBone ||
+                       skin.bones.Length!=skin.sharedMesh.bindposes.Length)
+                    {
+                        Log?.LogError("DEGU_VISUAL: cannot activate network clone; invalid bones/bindposes/root.");
+                    }
+                    else
+                    {
+                        skin.enabled=true;
+                        Log?.LogInfo("DEGU_VISUAL: enabled after ZNetView.Awake; bones="+
+                            skin.bones.Length+" bindposes="+skin.sharedMesh.bindposes.Length);
+                    }
                 }
             }
         }
