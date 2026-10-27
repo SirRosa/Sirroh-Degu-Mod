@@ -94,7 +94,7 @@ jobs:
           for f in assembly_valheim.dll assembly_utils.dll UnityEngine.CoreModule.dll UnityEngine.AnimationModule.dll UnityEngine.dll; do
             cp "$RUNNER_TEMP/valheim/valheim_server_Data/Managed/$f" ".ci-deps/$f"
           done
-      - name: Verify optional Overhaul v0.22.65 compatibility and Plains spawn contracts
+      - name: Verify isolated v0.4.0 module boundaries, original model and Plains spawn contracts
         run: python3 tools/verify_overhaul_adapter.py
       - name: Compile BepInEx plugin net48
         run: dotnet build SirrohDegu.csproj -c Release --nologo -v minimal
@@ -135,14 +135,14 @@ jobs:
             --icon release/SirrohDegu/icon.png \
             --out "release/SirRosa-SirrohDegu-${VERSION}.zip"
           unzip -Z1 "release/SirRosa-SirrohDegu-${VERSION}.zip"
-      - name: Upload unverified 0.3.4 candidate to PR artifacts ONLY
+      - name: Upload unverified 0.4.0 candidate to PR artifacts ONLY
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: SirrohDegu-034-UNVERIFIED-IN-GAME
+          name: SirrohDegu-040-UNVERIFIED-IN-GAME
           path: |
-            release/SirRosa-SirrohDegu-0.3.4.zip
-            release/SirrohDegu-0.3.4.zip
+            release/SirRosa-SirrohDegu-0.4.0.zip
+            release/SirrohDegu-0.4.0.zip
             release/Degu_Blender_QA.json
             release/Degu_Skinning_QA.json
           retention-days: 14
