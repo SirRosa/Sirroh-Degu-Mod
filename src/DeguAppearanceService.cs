@@ -24,6 +24,11 @@ namespace SirrohDegu
         private static FieldInfo variants;
         private static MethodInfo assign,applyProperties,loadCatalog;
         private static float nextCatalogRetry;
+        private static Material[] selectedWolfMaterials;
+        private static MethodInfo selectedAssign;
+        private static Type selectedCatalog;
+        private static string selectedSource;
+        private static float nextMaterialAudit;
         internal static bool CanRender {get;private set;}
 
         private static string lastFailure;
@@ -135,75 +140,162 @@ namespace SirrohDegu
             return null;
         }
 
-        // Returns false if the material bundle has not finished loading;
-        // callers then retry without changing persisted cosmetic choices.
+        // No color/material clones: inspect ONLY the two trusted plugin
+        // assemblies (Overhaul and its optional standalone Fur Randomizer).
+        // In external-bundle mode Overhaul's own Variants dictionary may be
+        // empty while the standalone module owns the real seven materials.
+        private static Type FindCatalog(System.Reflection.Assembly assembly)
+        {
+            if(assembly==null)return null;
+            Type exact=assembly.GetType("Sirro.PracaFizyczna.MaterialCatalog",false);
+            if(exact!=null)return exact;
+            try
+            {
+                foreach(Type type in assembly.GetTypes())
+                    if(type!=null && type.Name=="MaterialCatalog" &&
+                       AccessTools.Field(type,"Variants")!=null)
+                        return type;
+            }
+            catch(ReflectionTypeLoadException ex)
+            {
+                foreach(Type type in ex.Types)
+                    if(type!=null && type.Name=="MaterialCatalog" &&
+                       AccessTools.Field(type,"Variants")!=null)
+                        return type;
+            }
+            return null;
+        }
+
+        private static bool LoadedWolfCoats(Type catalog,out Material[] materials)
+        {
+            materials=null;
+            if(catalog==null)return false;
+            FieldInfo f=AccessTools.Field(catalog,"Variants");
+            IDictionary dict=f?.GetValue(null) as IDictionary;
+            if(dict==null || !dict.Contains("Wolf"))return false;
+            Array skins=dict["Wolf"] as Array;
+            if(skins==null || skins.Length!=7)return false;
+            Material[] result=new Material[7];
+            for(int i=0;i<7;i++)
+            {
+                object skin=skins.GetValue(i);
+                if(skin==null)return false;
+                FieldInfo main=AccessTools.Field(skin.GetType(),"Main");
+                if(main==null)return false;
+                result[i]=main.GetValue(skin) as Material;
+                if(!result[i])return false;
+            }
+            materials=result;
+            return true;
+        }
+
+        private static bool ResolveWolfMaterials()
+        {
+            if(selectedWolfMaterials!=null &&
+               selectedWolfMaterials.Length==7 && selectedWolfMaterials[0] &&
+               selectedWolfMaterials[6])return true;
+            if(!TryResolveMaterials())return false;
+            selectedWolfMaterials=null;
+            selectedCatalog=null;
+            selectedAssign=null;
+
+            var candidates=new System.Collections.Generic.List<Type>(2);
+            Type integrated=variants?.DeclaringType;
+            if(integrated!=null)candidates.Add(integrated);
+
+            if(Chainloader.PluginInfos.TryGetValue("sirroh.furrandomizer",out var standalone) &&
+               standalone?.Instance!=null)
+            {
+                Type own=FindCatalog(standalone.Instance.GetType().Assembly);
+                if(own!=null && !candidates.Contains(own))candidates.Add(own);
+            }
+
+            // Try Overhaul first, then the separate fur plugin. A standalone
+            // bundle never needs to be duplicated in Degu's own assembly.
+            foreach(Type candidate in candidates)
+            {
+                if(!LoadedWolfCoats(candidate,out Material[] mats))continue;
+                selectedWolfMaterials=mats;
+                selectedCatalog=candidate;
+                selectedAssign=AccessTools.Method(candidate,"Assign");
+                selectedSource=candidate.Assembly.GetName().Name;
+                DeguPlugin.Log?.LogInfo("DEGU_APPEARANCE: native Wolf coats READY; source="+selectedSource+
+                    " variants=7, render bridge=true.");
+                return true;
+            }
+
+            // If assets are not ready, ask ONLY the integrated Overhaul
+            // MaterialCatalog to load/borrow its own asset bundle. Never
+            // create or upload another copy of the user's Wolf textures.
+            if(loadCatalog!=null && Time.unscaledTime>=nextCatalogRetry)
+            {
+                nextCatalogRetry=Time.unscaledTime+5f;
+                try
+                {
+                    loadCatalog.Invoke(null,null);
+                    if(integrated!=null && LoadedWolfCoats(integrated,out Material[] mats))
+                    {
+                        selectedWolfMaterials=mats;
+                        selectedCatalog=integrated;
+                        selectedAssign=AccessTools.Method(integrated,"Assign");
+                        selectedSource=integrated.Assembly.GetName().Name;
+                        DeguPlugin.Log?.LogInfo("DEGU_APPEARANCE: native Wolf coats READY after Load; source="+
+                            selectedSource+" variants=7.");
+                        return true;
+                    }
+                }
+                catch(Exception ex)
+                {
+                    WarnBridge("native Overhaul MaterialCatalog.Load failed: "+
+                        ex.GetBaseException().Message);
+                }
+            }
+            if(Time.unscaledTime>=nextMaterialAudit)
+            {
+                nextMaterialAudit=Time.unscaledTime+15f;
+                DeguPlugin.Log?.LogWarning("DEGU_APPEARANCE: Wolf[7] MATERIALS UNAVAILABLE; OverhaulCatalog="+
+                    (integrated!=null)+" standaloneFur="+
+                    Chainloader.PluginInfos.ContainsKey("sirroh.furrandomizer")+
+                    ". Visual appearance cannot update until one catalog contains seven real Wolf materials.");
+            }
+            return false;
+        }
+
         internal static bool ApplyVisual(GameObject obj,int coat,int eye,int element)
         {
             if(SystemInfo.graphicsDeviceType==UnityEngine.Rendering.GraphicsDeviceType.Null)
                 return false;
-            if(!TryResolveMaterials())return false;
+            if(!ResolveWolfMaterials())return false;
             SkinnedMeshRenderer skin=Visible(obj);
-            if(!skin || !skin.sharedMesh)return false;
+            if(!skin || !skin.sharedMesh)
+            {
+                WarnBridge("Degu has no visible SirrohDegu_StableVisual renderer.");
+                return false;
+            }
             try
             {
-                var all=variants.GetValue(null) as IDictionary;
-                var coats=all==null?null:all["Wolf"] as Array;
-                if(coats==null || coats.Length<7)
-                {
-                    // Overhaul can defer its Fur bundle when a standalone Fur
-                    // Randomizer plugin is present. Ask its own loader to
-                    // resolve the shared bundle, never load a second one here.
-                    if(loadCatalog!=null && Time.unscaledTime>=nextCatalogRetry)
-                    {
-                        nextCatalogRetry=Time.unscaledTime+5f;
-                        try { loadCatalog.Invoke(null,null); }
-                        catch(Exception ex)
-                        {
-                            WarnBridge("native FurRandomizer.Load: "+ex.GetBaseException().Message);
-                        }
-                        all=variants.GetValue(null) as IDictionary;
-                        coats=all==null?null:all["Wolf"] as Array;
-                    }
-                    if(coats==null || coats.Length<7)
-                    {
-                        WarnBridge("Wolf[7] materials not yet available from the native Fur Randomizer.");
-                        return false;
-                    }
-                }
                 coat=Mathf.Clamp(coat,0,6);
-                object selected=coats.GetValue(coat);
-                if(selected==null)
-                {
-                    WarnBridge("Wolf variant "+coat+" is absent from the bundled materials.");
-                    return false;
-                }
-                // Inspect the actual Variant instance instead of depending on
-                // a second private type lookup at plugin Awake.
-                var main=selected.GetType().GetField("Main",
-                    BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public);
-                Material material=main?.GetValue(selected) as Material;
-                if(!material)
-                {
-                    WarnBridge("Wolf material for coat "+coat+" has not loaded.");
-                    return false;
-                }
+                Material material=selectedWolfMaterials[coat];
+                if(!material)return false;
                 Material[] slots=skin.sharedMaterials;
                 if(slots==null || slots.Length<2)
                 {
-                    WarnBridge("Degu stable renderer lacks two coat/eye submeshes.");
+                    WarnBridge("Degu visible renderer has no second eye submesh.");
                     return false;
                 }
-                // Reuse the exact materials that native Wolf Fur Randomizer
-                // already loaded; do not invent replacement tints or textures.
-                // The native Assign method also performs the Wolf shader and
-                // emission preparation where available.
-                if(assign!=null)
+                if(selectedAssign!=null &&
+                   selectedAssign.GetParameters().Length==4)
                 {
-                    assign.Invoke(null,new object[]{skin,0,material,true});
-                    assign.Invoke(null,new object[]{skin,1,material,true});
+                    selectedAssign.Invoke(null,new object[]{skin,0,material,true});
+                    selectedAssign.Invoke(null,new object[]{skin,1,material,true});
                 }
                 else
                 {
+                    // Fallback for standalone Fur Randomizer variants. The
+                    // material comes from that plugin's actual Wolf palette;
+                    // preserve the vanilla live renderer shader if needed.
+                    Shader shader=slots[0] ? slots[0].shader:null;
+                    if(shader && material.shader!=shader)material.shader=shader;
                     slots[0]=material;
                     slots[1]=material;
                     skin.sharedMaterials=slots;
@@ -211,8 +303,10 @@ namespace SirrohDegu
                 if(applyProperties!=null)
                     applyProperties.Invoke(null,new object[]{skin,material,
                         Mathf.Clamp(eye,0,6),Mathf.Clamp(element,0,5)});
-                // Wolf's shader writes overrides to submesh 0. Degu eyes are
-                // submesh 1, so mirror complete eye/emission properties.
+                else
+                {
+                    WarnBridge("WolfVisuals.ApplyProperties missing: coat applied; eyes and emissive unconfirmed.");
+                }
                 var block=new MaterialPropertyBlock();
                 skin.GetPropertyBlock(block,0);
                 skin.SetPropertyBlock(block,1);
@@ -220,7 +314,8 @@ namespace SirrohDegu
             }
             catch(Exception ex)
             {
-                WarnBridge("applying Wolf coat/eyes: "+ex.GetBaseException().Message);
+                WarnBridge("applying native Wolf materials to Degu: "+
+                    ex.GetBaseException().Message);
                 return false;
             }
         }
