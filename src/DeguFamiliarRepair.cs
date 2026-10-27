@@ -88,7 +88,7 @@ namespace SirrohDegu
                 Patch(taming,"Capture",nameof(AfterCapture),false,true);
                 Patch(panel,"UpdateDetail",nameof(AfterDetail),false,true);
                 DeguPlugin.Log?.LogInfo(
-                    "Degu v0.2.5 Tresura: controls, 7 coats, 6 eyes, name colors, level-25 runes and validated RPCs registered.");
+                    "Degu v0.3.1 Tresura: controls, 7 coats, 6 eyes, name colors, level-25 runes and validated RPCs registered.");
             }
             catch(Exception e)
             {
@@ -122,18 +122,31 @@ namespace SirrohDegu
         private static void SkinName(object info,ref string __result)
         {if(IsDegu(info))__result=FurNames[Mathf.Clamp(GetInt(info,"Skin"),0,6)];}
 
-        private static void SendRequest(object info,int opcode,int value)
+        private static bool SendRequest(object info,int opcode,int value)
         {
             Player player=Player.m_localPlayer;
-            if(!player || !Alive(info) || GetId(info)==ZDOID.None) return;
-            send.Invoke(null,new object[]{player,opcode,GetId(info),Vector3.zero,value});
+            if(!player || !Alive(info) || GetId(info)==ZDOID.None ||
+                !ZRoutedRpc.instance)return false;
+            ZNetView playerView=player.GetComponent<ZNetView>();
+            if(!playerView || !playerView.IsValid())return false;
+            try
+            {
+                // Use the native Overhaul request packet and server validation.
+                send.Invoke(null,new object[]{player,opcode,GetId(info),Vector3.zero,value});
+                return true;
+            }
+            catch(Exception e)
+            {
+                DeguPlugin.Log?.LogError("DEGU_TRESURA: failed to send opcode "+opcode+": "+e.GetBaseException());
+                return false;
+            }
         }
         private static bool ChooseSkin(object info,int direction)
         {
             if(!IsDegu(info))return true;
             if(!Alive(info))return false;
             int next=(GetInt(info,"Skin")+direction+7)%7;
-            SendRequest(info,10,next);
+            if(!SendRequest(info,10,next))return false;
             Set(info,"Skin",next);
             Dirty();
             return false;
@@ -144,7 +157,7 @@ namespace SirrohDegu
             if(!Alive(info))return false;
             int current=Mathf.Clamp(GetInt(info,"EyeColor",1),1,6);
             int next=1+(current-1+direction+6)%6;
-            SendRequest(info,18,next);
+            if(!SendRequest(info,18,next))return false;
             Set(info,"EyeColor",next);
             Dirty();
             return false;
@@ -154,7 +167,7 @@ namespace SirrohDegu
             if(!IsDegu(familiar))return true;
             if(!Alive(familiar))return false;
             int next=(GetInt(familiar,"NameColor",1)+direction+16)%16;
-            SendRequest(familiar,11,next);
+            if(!SendRequest(familiar,11,next))return false;
             Set(familiar,"NameColor",next);
             Dirty();
             return false;
@@ -164,7 +177,7 @@ namespace SirrohDegu
             if(!IsDegu(info))return true;
             if(!Alive(info) || GetInt(info,"PetLevel",1)<25)return false;
             bool previous=Get(info,"ShowRunes") is bool b && b;
-            SendRequest(info,17,previous?0:1);
+            if(!SendRequest(info,17,previous?0:1))return false;
             Set(info,"ShowRunes",!previous);
             Dirty();
             return false;
@@ -293,6 +306,21 @@ namespace SirrohDegu
             if(runeColor!=null && runeColor.CanWrite)
             {
                 bool active=Get(info,"ShowRunes") is bool b && b;
+                // Native menu considers only Wolf when selecting the toggle
+                // icon. Override its visual state for Degu, not other species.
+                try
+                {
+                    Type icons=AccessTools.TypeByName("Sirro.PracaFizyczna.SearchUiIcons");
+                    MethodInfo toggle=icons==null?null:AccessTools.Method(icons,"ToggleMask");
+                    object sprite=toggle?.Invoke(null,new object[]{active});
+                    PropertyInfo image=runeImage?.GetType().GetProperty("sprite");
+                    if(sprite!=null && image!=null && image.CanWrite)
+                        image.SetValue(runeImage,sprite,null);
+                }
+                catch(Exception ex)
+                {
+                    DeguPlugin.Log?.LogWarning("DEGU_TRESURA: rune icon unavailable: "+ex.GetBaseException().Message);
+                }
                 Color display=alive && GetInt(info,"PetLevel",1)>=25?
                     active?new Color(.24f,.86f,.32f,1f):new Color(.93f,.24f,.22f,1f):
                     new Color(.6f,.6f,.6f,.45f);
@@ -304,7 +332,7 @@ namespace SirrohDegu
             if(message!=lastState)
             {
                 lastState=message;
-                DeguPlugin.Log?.LogInfo("Degu Tresura UI 0.2.5: "+message);
+                DeguPlugin.Log?.LogInfo("Degu Tresura UI 0.3.1: "+message);
             }
         }
     }
