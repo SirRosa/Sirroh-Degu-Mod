@@ -89,6 +89,7 @@ namespace SirrohDegu
                 var texture = RequiredMethod(catalog,"PreviewTexture");
                 var random = RequiredMethod(catalog,"RandomIndex");
                 var supported = RequiredMethod(catalog,"IsSupported");
+                var valid = RequiredMethod(catalog,"IsValid");
                 var previewVisuals = RequiredMethod(visuals,"ApplyPreview");
 
                 patches = new Harmony("sirroh.degu.overhaul.v02265");
@@ -102,6 +103,10 @@ namespace SirrohDegu
                     AccessTools.Method(typeof(OverhaulCompatibility),nameof(AliasAnimal))));
                 patches.Patch(supported, postfix: new HarmonyMethod(
                     AccessTools.Method(typeof(OverhaulCompatibility),nameof(SupportedDegu))));
+                // IsValid is used by native preview and server-side coat checks.
+                // The original catalog has no Degu entry even when Count is aliased.
+                patches.Patch(valid, prefix: new HarmonyMethod(
+                    AccessTools.Method(typeof(OverhaulCompatibility),nameof(AliasSpecies))));
                 patches.Patch(tryApply, prefix: new HarmonyMethod(
                     AccessTools.Method(typeof(OverhaulCompatibility),nameof(ApplyDeguPrefix))));
                 patches.Patch(previewVisuals, prefix: new HarmonyMethod(
@@ -112,7 +117,7 @@ namespace SirrohDegu
                     prefix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewDiagnostics),"BeforeDetail")),
                     postfix:new HarmonyMethod(AccessTools.Method(typeof(DeguPreviewDiagnostics),"AfterDetail")));
                 Enabled = true;
-                DeguPlugin.Log?.LogInfo("Overhaul v0.22.65 adapter active: 7 coats, 6 eyes, runes and Tresura.");
+                DeguPlugin.Log?.LogInfo("Overhaul v0.22.65 adapter active: IsValid+Count+TryApply Degu aliases, 7 coats, 6 eyes, runes and Tresura.");
             }
             catch (Exception exception)
             {
