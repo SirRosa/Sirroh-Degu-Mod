@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace SirrohDegu
 {
-    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.2.5")]
+    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.3.1")]
     [BepInDependency("sirro.valheim.pracafizyczna", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class DeguPlugin : BaseUnityPlugin
     {
@@ -29,15 +29,15 @@ namespace SirrohDegu
             _patches.PatchAll(typeof(DeguPlugin).Assembly);
             DeguWorld.InstallLocalizationHook(_patches);
             DeguWorld.Localize();
-            OverhaulCompatibility.Install();
+            DeguAppearanceService.Install();
             DeguCompassIcon.Register(_patches);
             DeguFamiliarRepair.Install();
-            Logger.LogInfo("Sirroh Degu v0.2.5 loaded. Waiting for ZNetScene prefab registry.");
+            Logger.LogInfo("Sirroh Degu v0.3.1 loaded. Waiting for ZNetScene prefab registry.");
         }
 
         private void OnDestroy()
         {
-            OverhaulCompatibility.Shutdown();
+            // Appearance service owns no Harmony patches.
             DeguCompassIcon.Shutdown();
             DeguFamiliarRepair.Shutdown();
             if (_patches != null) _patches.UnpatchSelf();
@@ -139,7 +139,7 @@ namespace SirrohDegu
             {
                 if (existing != null && existing.name == "Degu")
                 {
-                    OverhaulCompatibility.AfterDeguRegistered(existing);
+                    DeguAppearanceService.RegisterPrefab(existing);
                     Log?.LogInfo("Degu already exists in ZNetScene.GetPrefab; no duplicate.");
                     return;
                 }
@@ -238,7 +238,7 @@ namespace SirrohDegu
                 throw new InvalidOperationException("ZNetScene.GetPrefab('Degu') failed after registration.");
             }
 
-            OverhaulCompatibility.AfterDeguRegistered(_deguPrefab);
+            DeguAppearanceService.RegisterPrefab(_deguPrefab);
             Log?.LogInfo("Degu REGISTERED + VERIFIED: ZNetScene.GetPrefab('Degu') resolved; " +
                          "prefab activeSelf=" + _deguPrefab.activeSelf +
                          ", activeInHierarchy=" + _deguPrefab.activeInHierarchy +
