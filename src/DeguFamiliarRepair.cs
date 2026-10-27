@@ -334,7 +334,7 @@ namespace SirrohDegu
         private static void RecoverExistingVisibleOwnedPets()
         {
             Player player=Player.m_localPlayer;
-            if(!player || !ZNetScene.instance || !ZRoutedRpc.instance ||
+            if(!player || !ZNetScene.instance || ZRoutedRpc.instance==null ||
                 Time.unscaledTime<nextRosterRecovery)return;
             nextRosterRecovery=Time.unscaledTime+8f;
             var ids=familiars?.GetValue(null) as List<ZDOID>;
@@ -372,10 +372,23 @@ namespace SirrohDegu
             }
         }
 
+        private static bool FromServer(long sender)
+        {
+            if(ZRoutedRpc.instance==null)return false;
+            MethodInfo getter=AccessTools.Method(typeof(ZRoutedRpc),"GetServerPeerID");
+            if(getter==null)
+            {
+                // Old dedicated-server API lacks the member at compile time.
+                // Do not accept unverified RPC identities.
+                ReportUnavailable("GetServerPeerID unavailable; skipping unverified roster hydrate.");
+                return false;
+            }
+            try { return getter.Invoke(ZRoutedRpc.instance,null) is long id && sender==id; }
+            catch(Exception){return false;}
+        }
         private static void BeforeStatus(long sender)
         {
-            if(ZRoutedRpc.instance==null ||
-                sender!=ZRoutedRpc.instance.GetServerPeerID())return;
+            if(!FromServer(sender))return;
             var ids=familiars?.GetValue(null) as List<ZDOID>;
             if(ids==null)return;
             // Iterate snapshot; no mutation of the native roster itself.
@@ -384,8 +397,7 @@ namespace SirrohDegu
         }
         private static void AfterAdopt(long sender,ZPackage pkg)
         {
-            if(ZRoutedRpc.instance==null || pkg==null ||
-                sender!=ZRoutedRpc.instance.GetServerPeerID())return;
+            if(pkg==null || !FromServer(sender))return;
             try
             {
                 ZDOID id=new ZPackage(pkg.GetArray()).ReadZDOID();
