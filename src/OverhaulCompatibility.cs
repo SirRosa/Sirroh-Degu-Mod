@@ -307,8 +307,31 @@ namespace SirrohDegu
                 int chosenEye=eyeColor>=1 && eyeColor<=6?eyeColor:
                     zdo==null?0:Mathf.Clamp(zdo.GetInt(EyeKey,0),0,6);
                 int level=zdo==null?1:zdo.GetInt(LevelKey,1);
-                int element=zdo!=null && showRunes && level>=25?
-                    Mathf.Clamp(zdo.GetInt(ElementKey,0),0,5):0;
+                int savedElement=zdo==null?0:zdo.GetInt(ElementKey,0);
+                if(zdo==null)
+                {
+                    // A distant familiar may have no loaded ZDO on this client.
+                    // Reuse its already-persisted Overhaul record; never create
+                    // a network creature just to preview the saved elemental rune.
+                    Type panel=AccessTools.TypeByName("Sirro.PracaFizyczna.FamiliarMenuPanel");
+                    MethodInfo selected=panel==null?null:AccessTools.Method(panel,"Selected");
+                    object info=selected?.Invoke(null,null);
+                    if(info!=null)
+                    {
+                        var flags=BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic;
+                        Type recordType=info.GetType();
+                        object recordId=recordType.GetField("Id",flags)?.GetValue(info);
+                        if(recordId is ZDOID matchingId && matchingId==petId)
+                        {
+                            object recordLevel=recordType.GetField("PetLevel",flags)?.GetValue(info);
+                            object recordElement=recordType.GetField("Element",flags)?.GetValue(info);
+                            if(recordLevel is int l)level=l;
+                            if(recordElement is int e)savedElement=e;
+                        }
+                    }
+                }
+                int element=showRunes && level>=25?
+                    Mathf.Clamp(savedElement,0,5):0;
                 applyProperties.Invoke(null,new object[]{
                     renderer,renderer.sharedMaterial,chosenEye,element
                 });
