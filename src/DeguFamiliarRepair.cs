@@ -44,13 +44,32 @@ namespace SirrohDegu
         private static ZDOID GetId(object record)=>Get(record,"Id") is ZDOID id?id:ZDOID.None;
         private static void Dirty()=>dirty?.SetValue(null,true);
 
+        private static string lastFailure;
         internal static void Install()
         {
-            if(!Chainloader.PluginInfos.TryGetValue(OverhaulId,out var p) ||
-               p.Metadata.Version.ToString()!=RequiredVersion) return;
+            if(harmony!=null)return;
             try
             {
-                Assembly asm=p.Instance.GetType().Assembly;
+                Assembly asm=null;
+                if(Chainloader.PluginInfos.TryGetValue(OverhaulId,out var plugin))
+                {
+                    Version version=plugin.Metadata.Version;
+                    if(version.Major!=0 || version.Minor!=22 || version.Build!=65)
+                    {
+                        ReportUnavailable("installed Overhaul "+version+"; expected "+RequiredVersion);
+                        return;
+                    }
+                    asm=plugin.Instance.GetType().Assembly;
+                }
+                // BepInEx may not expose the plugin through PluginInfos
+                // during this mod's Awake. Re-resolve at ZNetScene setup.
+                Type fallback=AccessTools.TypeByName("Sirro.PracaFizyczna.TamingSkill");
+                if(asm==null)asm=fallback?.Assembly;
+                if(asm==null)
+                {
+                    ReportUnavailable("Overhaul TamingSkill has not loaded yet");
+                    return;
+                }
                 Type taming=asm.GetType("Sirro.PracaFizyczna.TamingSkill",true);
                 Type panel=asm.GetType("Sirro.PracaFizyczna.FamiliarMenuPanel",true);
                 Type wolfVisuals=asm.GetType("Sirro.PracaFizyczna.WolfVisuals",true);
@@ -87,15 +106,22 @@ namespace SirrohDegu
                 Patch(taming,"HandleLifecycleRequest",nameof(ServerRequest),true,false);
                 Patch(taming,"Capture",nameof(AfterCapture),false,true);
                 Patch(panel,"UpdateDetail",nameof(AfterDetail),false,true);
+                lastFailure=null;
                 DeguPlugin.Log?.LogInfo(
-                    "Degu v0.3.1 Tresura: controls, 7 coats, 6 eyes, name colors, level-25 runes and validated RPCs registered.");
+                    "DEGU_TRESURA: native menu/RPC hooks ACTIVE; 7 coats, 6 eyes, 16 name colors and level-25 runes.");
             }
             catch(Exception e)
             {
                 harmony?.UnpatchSelf();
                 harmony=null;
-                DeguPlugin.Log?.LogError("Degu Tresura adapter unavailable: "+e);
+                ReportUnavailable("menu/RPC patch initialization exception: "+e.GetBaseException());
             }
+        }
+        private static void ReportUnavailable(string cause)
+        {
+            if(cause==lastFailure)return;
+            lastFailure=cause;
+            DeguPlugin.Log?.LogWarning("DEGU_TRESURA unavailable: "+cause);
         }
         private static void Patch(Type type,string target,string patch,bool prefix,bool postfix)
         {
