@@ -73,3 +73,25 @@ Każdy kolejny commit zmiany: dopisać do update.md datę/wersję, zmodyfikowane
 - **Blender QA:** 34 kości, 34 grupy wierzchołków, 2580 ścian, ocena rest-pose PASS; skinning QA PASS. To NIE dowodzi braku ostrzeżenia bindpose w Unity.
 - **Valheim runtime:** NIEPRZETESTOWANE na tym buildzie. Futro (7/7), oczy (6/6), menu Tresury, zapis/odtwarzanie chowańców, emisja od 25 poziomu, przełącznik, neutralne AI, spawn Równiny 3–7, podgląd 3D i multi = **NIEPOTWIERDZONE**. Nie ogłaszać wydania produkcyjnego.
 - **Wniosek:** kod odpowiada na potwierdzone błędy metod Overhaul (`OnAnswer`, utrata `Prefab` podczas statusu), pominięty fallback materiałów i konflikty shaderów, ale bez uruchomienia gry nie udowodniono ich rozwiązania w praktyce. PR #6 pozostaje draft, `main` bez modyfikacji.
+
+## 0.4.0 — pełna przebudowa modułów, zamiast kolejnych patchy starego adaptera
+
+**Stan wyjściowy (test gry, 2026-10-27, 21:05):** w 0.3.4 Degu spawnuje się w grupach 3–7, renderer ma 34 kości i 34 bindposes, lecz `material_adapter=False`. Właściciel ZDO losuje `coat=0..6` i `eye=1..6`, ale żaden kolor nie trafia na model. Degu nie pojawia się w Tresurze. Log wypisuje masowo niepotrzebne linie `DEGU_BINDPOSE_CHECK`. W przekazanym fragmencie nie ma samego ostrzeżenia bindpose. To są fakty, nie domniemania.
+
+**Architektoniczne błędy 0.3.4 potwierdzone z kodu:**
+1. Trzy wersjonowane, zależne od refleksji adaptery (`DeguAppearanceService`, `DeguFamiliarRepair`, `DeguPreviewDiagnostics`) mogą wyłączać WSZYSTKIE funkcje, gdy brakuje choć jednego symbolu lub nie zgadza się ścisły numer wersji Overhaul. `CanRender=false` blokuje nakładanie materiałów mimo poprawnego ZDO. Sam log nie dowodzi, który dokładnie symbol zawiódł.
+2. Brak niezależnego pobierania materiałów z załadowanych AssetBundle; Overhaul 0.22.65 przy osobnym Fur Randomizerze nie musi wypełnić własnego katalogu.
+3. Degu w Tresurze zależał od all-or-nothing `Install()`, a odzyskiwanie wpisu mogło działać dopiero, kiedy sam wpis był już niewidoczny.
+4. Debug w `ZNetView.Awake` i `DeguBindposeTrace` generował ścianę wpisów podczas masowego spawnowania, bez nowych danych.
+
+**Wykonane (kod):**
+- `src/DeguWolfPalette.cs` (NOWY): odczyt oryginalnych siedmiu wariantów Wilka z katalogu Overhaul LUB istniejącego załadowanego AssetBundle, bez sztywnego gate wersji; 7 współdzielonych kopii materiałów **tylko dla Degu**, z oryginalną paletą i shaderem Valheim; oczy i żywioły przez natywne `WolfVisuals.ApplyProperties`. Jeden właściciel ZDO losuje kolor futra i oczu, a klienci go odtwarzają.
+- `src/DeguFamiliarBridge.cs` (NOWY): niezależne patche każdej funkcji Tresury, zamiast globalnego wyłączenia modułu; natywny RPC z kontrolą właściciela/ZDO i roster; zachowanie wpisów istniejących oswojonych Degu; sterowanie futrem/oczami/kolorem imienia/runami.
+- `src/DeguPreviewBridge.cs` (NOWY): odłączony podgląd 3D bez instancjonowania Character/AI, pełna mapa 34 kości PRZED przypisaniem mesha.
+- `SirrohDegu.csproj`: stare `OverhaulCompatibility.cs`, `DeguAppearanceService.cs`, `DeguFamiliarRepair.cs`, `DeguPreviewDiagnostics.cs`, `DeguBindposeTrace.cs` wykluczone z kompilacji (pozostały wyłącznie jako historia na GitHub). Żadna stara Harmony integracja nie może działać w nowej DLL.
+- `src/DeguPlugin.cs`: wywołuje wyłącznie nowe systemy. Usunięto niepotrzebne globalne patchowanie `ZNetView.Awake` i spamujące śledzenie bindpose. Model/AI/spawn/rig/tekstury pozostają jak w 0.3.4.
+- `manifest.json`, README, CI: wydanie próbne 0.4.0. `tools/verify_overhaul_adapter.py`: nowy test izolacji modułów i kontraktów, nie poświadczający runtime.
+
+**Cel:** najpierw prawdziwe warianty Wilka na Degu i przywrócona lista Tresury; następnie działające 7/6 wyborów, runy od poziomu 25, poprawny preview, brak bindpose, neutralne AI i spawn 3–7.
+
+**Wyniki testów:** kompilacja/QA 0.4.0 = DO WERYFIKACJI, wynik Valheim runtime = NIEPRZETESTOWANE. Nie wolno oznaczać żadnej wymaganej funkcji jako PASS tylko na podstawie CI. Nie modyfikować Overhaul ani oryginalnego main.
