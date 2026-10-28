@@ -176,6 +176,7 @@ assert 'DeguCorpse.Shutdown();' in plugin
 print("PASS custom DeguRagdoll network registration, native physics, isolated death effects, color ZDO and unchanged Wolf prefabs")
 
 assert 'DeguCorpseGroundSupport.Configure(candidate);' in corpse
+assert 'keeping native DeguRagdoll instead of losing corpse' in corpse
 support=Path("src/DeguCorpseGroundSupport.cs").read_text()
 for fragment in (
     'internal const string ContactName="SirrohDegu_CorpseGroundContact";',
