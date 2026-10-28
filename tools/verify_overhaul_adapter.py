@@ -110,9 +110,9 @@ for token in ('PlainsMonsters','SetIfPresent(ai, "m_huntPlayer", false)',
               'Put(spawn,"m_spawnInterval",250f)',
               'Put(spawn,"m_spawnChance",35f)'):
     assert token in world,token
-assert json.loads(Path("manifest.json").read_text())["version_number"]=="0.4.2"
-assert '"0.4.2"' in plugin
-assert "0.4.2" in Path("update.md").read_text()
+assert json.loads(Path("manifest.json").read_text())["version_number"]=="0.4.3"
+assert '"0.4.3"' in plugin
+assert "0.4.3" in Path("update.md").read_text()
 icon=Path("Assets/Icons/Degu.png").read_bytes()
 assert hashlib.sha256(icon).hexdigest()=="925240b90df35a969b1adebf666a7d7875aa4d502f2ce027cd27095d65613a03"
 print("PASS neutral AI, Plains 3–7 spawn, icon integrity, version ledger")
@@ -174,3 +174,28 @@ assert 'DeguCorpse.Register(scene,existing,GetHolder().transform);' in plugin
 assert 'DeguCorpse.Register(scene,_deguPrefab,GetHolder().transform);' in plugin
 assert 'DeguCorpse.Shutdown();' in plugin
 print("PASS custom DeguRagdoll network registration, native physics, isolated death effects, color ZDO and unchanged Wolf prefabs")
+
+assert 'DeguCorpseGroundSupport.Configure(candidate);' in corpse
+support=Path("src/DeguCorpseGroundSupport.cs").read_text()
+for fragment in (
+    'internal const string ContactName="SirrohDegu_CorpseGroundContact";',
+    'private const float WorldRadius=.19f;',
+    'corpse.GetComponentsInChildren<Rigidbody>(true)',
+    'if(!corpse.GetComponent<Ragdoll>())',
+    'Transform pelvis=null,head=null;',
+    'Vector3 center=pelvis.position+direction*.30f;',
+    'node.transform.SetParent(torso.transform,false);',
+    'node.layer=torso.gameObject.layer;',
+    'SphereCollider sphere=node.AddComponent<SphereCollider>();',
+    'sphere.radius=WorldRadius/max;',
+    'sphere.isTrigger=false;',
+    'torso.collisionDetectionMode=CollisionDetectionMode.ContinuousDynamic;',
+    'Physics.IgnoreCollision(contact,other,true);',
+):
+    assert fragment in support,fragment
+for forbidden in ('new Rigidbody(', 'AddComponent<Rigidbody>', 'Physics.Raycast', 'GetGroundHeight',
+                  'transform.position.y=', 'transform.position+=', 'Rigidbody.MovePosition'):
+    assert forbidden not in support,forbidden
+assert 'DeguWorld.Configure(' not in support
+assert 'DeguWolfPalette.Apply(' not in support
+print("PASS corpse-only dynamic torso support, native ragdoll ownership, ground contact without teleporting or altering living Degu")
