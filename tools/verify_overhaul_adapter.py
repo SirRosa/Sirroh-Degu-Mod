@@ -1,4 +1,4 @@
-"""Contracts for completely rebuilt Degu 0.4.0 modules.
+"""Contracts for completely rebuilt Degu 0.4.1 modules.
 This verifies source isolation and prevents static regressions only.
 It DOES NOT test the client Valheim game runtime.
 """
@@ -10,7 +10,7 @@ def blob(path):
 
 frozen={
  "src/DeguWorld.cs":"c8c5294b65bec39d88ad5cabd2068f1d3cd886e9",
- "src/DeguRigDriver.cs":"72cb05dfde8d02b2ff4e3e523cdc7b82ba0232c5",
+ # RigDriver changed ONLY to remove nonfunctional QA/scale diagnostics; checked below.
  "src/DeguEyeEmission.cs":"f0bf96db0577dcb01d2b9246fcabf5330b791fee",
  "Assets/Degu.part1.b64":"3643a4de782a1b9c5fc1ac95dc586d5caf7c3aef",
  "Assets/Degu.part2.b64":"dddd2ba9a064c5ef8f57a66fa87a956f8477d869",
@@ -19,6 +19,18 @@ frozen={
 for path,expected in frozen.items():
     assert blob(path)==expected,"Changed gameplay/asset file: "+path
 assert blob("src/DeguMesh.cs")=="ae30815d9666c561faa67fd159e7a25cbe9662a3"
+rig=Path("src/DeguRigDriver.cs").read_text()
+assert blob("src/DeguRigDriver.cs")=="71c2de3d821978bbe43962dc5411894897893f94"
+assert 'Quaternion.Angle' not in rig
+assert 'Degu ANIM QA' not in rig
+assert 'Degu sprint diagnostic: vanilla Wolf renderer localScale' not in rig
+for critical in ("Vector3.ClampMagnitude(pelvisDelta, .24f)",
+                 "fittedDegu[0].localPosition = fittedRootAtBind + pelvisDelta;",
+                 "fittedDegu[0].rotation = originalWolf[0].rotation;",
+                 "fittedDegu[i].localRotation = originalWolf[i].localRotation;"):
+    assert critical in rig,critical
+print("PASS rig retargeting and root translation safety preserved; diagnostic-only noise removed")
+
 print("PASS original model, weights, rig, user textures, AI and spawn sources unchanged")
 
 csproj=Path("SirrohDegu.csproj").read_text()
@@ -98,9 +110,35 @@ for token in ('PlainsMonsters','SetIfPresent(ai, "m_huntPlayer", false)',
               'Put(spawn,"m_spawnInterval",250f)',
               'Put(spawn,"m_spawnChance",35f)'):
     assert token in world,token
-assert json.loads(Path("manifest.json").read_text())["version_number"]=="0.4.0"
-assert '"0.4.0"' in plugin
-assert "0.4.0" in Path("update.md").read_text()
+assert json.loads(Path("manifest.json").read_text())["version_number"]=="0.4.1"
+assert '"0.4.1"' in plugin
+assert "0.4.1" in Path("update.md").read_text()
 icon=Path("Assets/Icons/Degu.png").read_bytes()
 assert hashlib.sha256(icon).hexdigest()=="925240b90df35a969b1adebf666a7d7875aa4d502f2ce027cd27095d65613a03"
 print("PASS neutral AI, Plains 3–7 spawn, icon integrity, version ledger")
+
+sound=Path("src/DeguAudioPitch.cs").read_text()
+for p in ("private const string Prefix=\"SirrohDegu_Audio_\";",
+          "m_minPitch=Mathf.Clamp(min*factor,0.1f,3f)",
+          "m_maxPitch=Mathf.Clamp(max*factor,soundEffect.m_minPitch,3f)",
+          "SfxCopies[sound]=copy;",
+          "Owned.Add(copy);",
+          "object copiedEntry=CloneObject.Invoke(entry,null)",
+          "object copiedList=CloneObject.Invoke(list,null)",
+          "effects.SetValue(copiedList,rewritten)",
+          "field.SetValue(component,copiedList)",
+          "DeguPlugin.RegisterSupplementalPrefab(scene,clone)",
+          "if(!ConfiguredActors.Add(degu.GetInstanceID()))"):
+    assert p in sound,p
+assert 'originals.SetValue(' not in sound
+assert 'soundEffect.m_minPitch=' in sound
+assert 'UnityEngine.Object.Instantiate(sound,holder)' in sound
+assert 'Config.Bind("Audio","VoicePitchMultiplier",1.45f' in plugin
+assert 'DeguAudioPitch.Configure(scene,existing,GetHolder().transform);' in plugin
+assert 'DeguAudioPitch.Configure(scene,_deguPrefab,GetHolder().transform);' in plugin
+assert 'DeguAudioPitch.Shutdown();' in plugin
+assert 'RegisterSupplementalPrefab(ZNetScene scene,GameObject prefab)' in plugin
+assert 'Degu sprint diagnostic' not in rig or 'pelvis offset' in rig
+assert 'Log?.LogDebug("DEGU_TRESURA: server saved op="' in ui
+assert 'Log?.LogInfo("DEGU_TRESURA: server saved op="' not in ui
+print("PASS Degu-only sound clones and configurable pitch; no vanilla Wolf SFX or shared EffectList mutation")
