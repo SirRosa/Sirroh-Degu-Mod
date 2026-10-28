@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Logging;
+using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
 
@@ -25,6 +26,10 @@ namespace SirrohDegu
             Instance = this;
             Log = Logger;
 
+            DeguAudioPitch.Multiplier=Config.Bind("Audio","VoicePitchMultiplier",1.45f,
+                new ConfigDescription("Pitch multiplier for Degu's cloned Wolf sounds only. "+
+                    "1.0 = original Wolf voice; 1.45 = higher, squeaky voice; restart required.",
+                    new AcceptableValueRange<float>(1.0f,2.0f))).Value;
             _patches = new Harmony("sirroh.valheim.degu");
             _patches.PatchAll(typeof(DeguPlugin).Assembly);
             DeguWorld.InstallLocalizationHook(_patches);
@@ -44,6 +49,7 @@ namespace SirrohDegu
             DeguFamiliarBridge.Shutdown();
             DeguPreviewBridge.Shutdown();
             DeguWolfPalette.Shutdown();
+            DeguAudioPitch.Shutdown();
             if (_patches != null) _patches.UnpatchSelf();
             if (_prefabHolder != null) UnityEngine.Object.Destroy(_prefabHolder);
             _prefabHolder = null;
@@ -122,6 +128,22 @@ namespace SirrohDegu
             if (method == null) throw new MissingMethodException(lookup.GetType().FullName, "Remove");
             method.Invoke(lookup, new object[] { hash });
         }
+        // Used only for Degu-owned cloned Wolf sound prefabs. This cannot
+        // overwrite original sfx_wolf* names or their material/audio settings.
+        internal static void RegisterSupplementalPrefab(ZNetScene scene,GameObject prefab)
+        {
+            if(!scene || !prefab || scene.m_prefabs==null)return;
+            int hash=StringExtensionMethods.GetStableHashCode(prefab.name);
+            object lookup=GetNamedPrefabs(scene);
+            if(TryGetNamedPrefab(lookup,hash,out GameObject existing))
+            {
+                if(existing!=prefab)
+                    throw new InvalidOperationException("Degu sound prefab hash collision: "+prefab.name);
+                return;
+            }
+            if(!scene.m_prefabs.Contains(prefab))scene.m_prefabs.Add(prefab);
+            AddNamedPrefab(lookup,hash,prefab);
+        }
 
         private static void Register(ZNetScene scene)
         {
@@ -140,6 +162,7 @@ namespace SirrohDegu
                 {
                     // Wolf palette resolves independently as game assets load.
                     DeguWolfPalette.Register(existing);
+                    DeguAudioPitch.Configure(scene,existing,GetHolder().transform);
                     Log?.LogInfo("Degu already exists in ZNetScene.GetPrefab; no duplicate.");
                     return;
                 }
@@ -240,6 +263,7 @@ namespace SirrohDegu
 
             // Wolf palette resolves independently as game assets load.
             DeguWolfPalette.Register(_deguPrefab);
+            DeguAudioPitch.Configure(scene,_deguPrefab,GetHolder().transform);
             // Final Degu renderer is staged disabled until clone Start.
             Log?.LogInfo("Degu REGISTERED + VERIFIED: ZNetScene.GetPrefab('Degu') resolved; " +
                          "prefab activeSelf=" + _deguPrefab.activeSelf +
