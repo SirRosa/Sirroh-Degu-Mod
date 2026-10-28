@@ -205,3 +205,8 @@ Zachowano 0.4.0 (losowe futro i oczy, Tresura, runy, rig, AI i naturalny spawn).
 ## 0.4.2 — osobny prefab martwej koszatniczki
 
 Po śmierci Degu wywoływany jest sieciowy **DeguRagdoll**, a nie **Wolf_Ragdoll**. Prefab tworzony jest na bazie oryginalnego ragdolla wilka i zachowuje fizykę, collidery, oryginalny mechanizm łupów oraz zanikania, ale widoczny model jest zastępowany oryginalnym, 34-kościstym modelem Degu. Oryginalne prefaby wilka i ich efekty śmierci pozostają nietknięte. Mod izoluje od nich listę efektów Degu, zachowując inne efekty śmierci. Przed śmiercią właściciel sieciowy zapisuje futro, oczy i aktywne runy do krótkotrwałego snapshota; prefab zwłok zapisuje te wartości do swojego ZDO, aby pozostali gracze widzieli ten sam wariant. Jeśli nie da się zbudować kompletnego prefabu 34-kościstego, mod zachowuje dotychczasowy efekt śmierci i zgłasza błąd zamiast zmieniać żywego Degu. **Ragdoll wymaga testu w Valheim; kompilacja nie potwierdza poprawności fizyki i wyglądu.**
+
+
+## 0.4.3 — fizyka zwłok na podłożu
+
+Poprawka wyłącznie prefabów zwłok Degu. Natywny `Wolf_Ragdoll` ma własne collider-y dla rozmiarów wilka; widoczne zwłoki Degu są mniejsze i wymagają osobnego podparcia. Nowy `DeguCorpseGroundSupport` dodaje **sferyczny punkt kontaktu o promieniu 0,19 m** do istniejącego fizycznego tułowia ragdolla (bez dodatkowego Rigidbody), z `ContinuousDynamic` i ignorowaniem zderzeń z innymi częściami tego samego ragdolla. Nie podnosi sztucznie zwłok, nie teleportuje ich ani nie modyfikuje terenu. Pozostawia natywną fizykę, łupy, czas zanikania i wszystkie funkcje żywego Degu. **Wynik w Valheim wymaga potwierdzenia** — kompilacja nie symuluje kontaktu z terenem.
