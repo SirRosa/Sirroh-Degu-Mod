@@ -26,7 +26,10 @@ namespace SirrohDegu
 
         private static Harmony harmony;
         private static MethodInfo selected, send, eyeName;
-        private static FieldInfo pending, dirty, details;
+        private static FieldInfo pending, dirty, details, familiars;
+        private static MethodInfo captureNative,saveNative,slotCountNative;
+        private static float nextRosterRecovery;
+        private static readonly FieldInfo PlayerNetworkView=AccessTools.Field(typeof(Character),"m_nview");
         private static FieldInfo furPrev, furNext, eyePrev, eyeNext, namePrev, nameNext, rune;
         private static Type infoType;
         private static string lastState;
@@ -44,13 +47,32 @@ namespace SirrohDegu
         private static ZDOID GetId(object record)=>Get(record,"Id") is ZDOID id?id:ZDOID.None;
         private static void Dirty()=>dirty?.SetValue(null,true);
 
+        private static string lastFailure;
         internal static void Install()
         {
-            if(!Chainloader.PluginInfos.TryGetValue(OverhaulId,out var p) ||
-               p.Metadata.Version.ToString()!=RequiredVersion) return;
+            if(harmony!=null)return;
             try
             {
-                Assembly asm=p.Instance.GetType().Assembly;
+                Assembly asm=null;
+                if(Chainloader.PluginInfos.TryGetValue(OverhaulId,out var plugin))
+                {
+                    System.Version version=plugin.Metadata.Version;
+                    if(version.Major!=0 || version.Minor!=22 || version.Build!=65)
+                    {
+                        ReportUnavailable("installed Overhaul "+version+"; expected "+RequiredVersion);
+                        return;
+                    }
+                    asm=plugin.Instance.GetType().Assembly;
+                }
+                // BepInEx may not expose the plugin through PluginInfos
+                // during this mod's Awake. Re-resolve at ZNetScene setup.
+                Type fallback=AccessTools.TypeByName("Sirro.PracaFizyczna.TamingSkill");
+                if(asm==null)asm=fallback?.Assembly;
+                if(asm==null)
+                {
+                    ReportUnavailable("Overhaul TamingSkill has not loaded yet");
+                    return;
+                }
                 Type taming=asm.GetType("Sirro.PracaFizyczna.TamingSkill",true);
                 Type panel=asm.GetType("Sirro.PracaFizyczna.FamiliarMenuPanel",true);
                 Type wolfVisuals=asm.GetType("Sirro.PracaFizyczna.WolfVisuals",true);
@@ -60,8 +82,12 @@ namespace SirrohDegu
                 selected=AccessTools.Method(panel,"Selected");
                 send=AccessTools.Method(taming,"Send");
                 pending=AccessTools.Field(taming,"Pending");
+                familiars=AccessTools.Field(taming,"Familiars");
                 dirty=AccessTools.Field(taming,"_dirtyRecords");
                 details=AccessTools.Field(taming,"Details");
+                captureNative=AccessTools.Method(taming,"Capture");
+                saveNative=AccessTools.Method(taming,"Save");
+                slotCountNative=AccessTools.Method(taming,"Slots");
                 furPrev=AccessTools.Field(panel,"_left");
                 furNext=AccessTools.Field(panel,"_right");
                 eyePrev=AccessTools.Field(panel,"_eyeLeft");
@@ -69,8 +95,9 @@ namespace SirrohDegu
                 namePrev=AccessTools.Field(panel,"_fontLeft");
                 nameNext=AccessTools.Field(panel,"_fontRight");
                 rune=AccessTools.Field(panel,"_runesToggle");
-                if(selected==null || send==null || eyeName==null || pending==null || dirty==null ||
-                   details==null || furPrev==null || furNext==null ||
+                if(selected==null || send==null || eyeName==null || pending==null || familiars==null || dirty==null ||
+                   details==null || captureNative==null || saveNative==null || slotCountNative==null ||
+                   furPrev==null || furNext==null ||
                    eyePrev==null || eyeNext==null || namePrev==null ||
                    nameNext==null || rune==null)
                     throw new MissingMemberException("Overhaul 0.22.65 Tresura surface");
@@ -86,16 +113,25 @@ namespace SirrohDegu
                 Patch(taming,"ToggleElementRunes",nameof(ToggleRunes),true,false);
                 Patch(taming,"HandleLifecycleRequest",nameof(ServerRequest),true,false);
                 Patch(taming,"Capture",nameof(AfterCapture),false,true);
+                Patch(taming,"OnStatus",nameof(BeforeStatus),true,false);
+                Patch(taming,"OnAnswer",nameof(AfterAdopt),false,true);
                 Patch(panel,"UpdateDetail",nameof(AfterDetail),false,true);
+                lastFailure=null;
                 DeguPlugin.Log?.LogInfo(
-                    "Degu v0.2.5 Tresura: controls, 7 coats, 6 eyes, name colors, level-25 runes and validated RPCs registered.");
+                    "DEGU_TRESURA: native menu/RPC hooks ACTIVE; 7 coats, 6 eyes, 16 name colors and level-25 runes.");
             }
             catch(Exception e)
             {
                 harmony?.UnpatchSelf();
                 harmony=null;
-                DeguPlugin.Log?.LogError("Degu Tresura adapter unavailable: "+e);
+                ReportUnavailable("menu/RPC patch initialization exception: "+e.GetBaseException());
             }
+        }
+        private static void ReportUnavailable(string cause)
+        {
+            if(cause==lastFailure)return;
+            lastFailure=cause;
+            DeguPlugin.Log?.LogWarning("DEGU_TRESURA unavailable: "+cause);
         }
         private static void Patch(Type type,string target,string patch,bool prefix,bool postfix)
         {
@@ -122,18 +158,42 @@ namespace SirrohDegu
         private static void SkinName(object info,ref string __result)
         {if(IsDegu(info))__result=FurNames[Mathf.Clamp(GetInt(info,"Skin"),0,6)];}
 
-        private static void SendRequest(object info,int opcode,int value)
+        private static bool SendRequest(object info,int opcode,int value)
         {
             Player player=Player.m_localPlayer;
-            if(!player || !Alive(info) || GetId(info)==ZDOID.None) return;
-            send.Invoke(null,new object[]{player,opcode,GetId(info),Vector3.zero,value});
+            if(!player || !Alive(info) || GetId(info)==ZDOID.None ||
+                ZRoutedRpc.instance==null)
+            {
+                DeguPlugin.Log?.LogWarning("DEGU_TRESURA: menu request blocked: local player, valid familiar or network unavailable; op="+opcode);
+                return false;
+            }
+            ZNetView ownView=PlayerNetworkView?.GetValue(player) as ZNetView;
+            if(!ownView || !ownView.IsValid())
+            {
+                DeguPlugin.Log?.LogWarning("DEGU_TRESURA: native Player.m_nview unavailable; op="+opcode);
+                return false;
+            }
+            try
+            {
+                // Match the exact native Overhaul Player.m_nview condition.
+                // Redundant guards can silently suppress every menu click.
+                send.Invoke(null,new object[]{player,opcode,GetId(info),Vector3.zero,value});
+                DeguPlugin.Log?.LogInfo("DEGU_TRESURA: sent native request op="+opcode+
+                    " value="+value+" target="+GetId(info));
+                return true;
+            }
+            catch(Exception e)
+            {
+                DeguPlugin.Log?.LogError("DEGU_TRESURA: failed to send opcode "+opcode+": "+e.GetBaseException());
+                return false;
+            }
         }
         private static bool ChooseSkin(object info,int direction)
         {
             if(!IsDegu(info))return true;
             if(!Alive(info))return false;
             int next=(GetInt(info,"Skin")+direction+7)%7;
-            SendRequest(info,10,next);
+            if(!SendRequest(info,10,next))return false;
             Set(info,"Skin",next);
             Dirty();
             return false;
@@ -144,7 +204,7 @@ namespace SirrohDegu
             if(!Alive(info))return false;
             int current=Mathf.Clamp(GetInt(info,"EyeColor",1),1,6);
             int next=1+(current-1+direction+6)%6;
-            SendRequest(info,18,next);
+            if(!SendRequest(info,18,next))return false;
             Set(info,"EyeColor",next);
             Dirty();
             return false;
@@ -154,7 +214,7 @@ namespace SirrohDegu
             if(!IsDegu(familiar))return true;
             if(!Alive(familiar))return false;
             int next=(GetInt(familiar,"NameColor",1)+direction+16)%16;
-            SendRequest(familiar,11,next);
+            if(!SendRequest(familiar,11,next))return false;
             Set(familiar,"NameColor",next);
             Dirty();
             return false;
@@ -164,7 +224,7 @@ namespace SirrohDegu
             if(!IsDegu(info))return true;
             if(!Alive(info) || GetInt(info,"PetLevel",1)<25)return false;
             bool previous=Get(info,"ShowRunes") is bool b && b;
-            SendRequest(info,17,previous?0:1);
+            if(!SendRequest(info,17,previous?0:1))return false;
             Set(info,"ShowRunes",!previous);
             Dirty();
             return false;
@@ -230,6 +290,126 @@ namespace SirrohDegu
             Set(info,"Skin",Mathf.Clamp(zdo.GetInt(SkinKey,0),0,6));
             Set(info,"NameColor",Mathf.Clamp(zdo.GetInt(NameColorKey,1),0,15));
         }
+        // Overhaul 0.22.65 may discard a roster slot when its FamiliarInfo
+        // record has no species and the pet was not in the currently loaded
+        // scene when OnAdoptReply called Capture. Preserve the identity of an
+        // EXISTING owned Degu ZDO before that orphan cleanup runs.
+        private static bool HydrateExistingOwnedDegu(ZDOID id)
+        {
+            if(id==ZDOID.None || Player.m_localPlayer==null ||
+                ZDOMan.instance==null || ZNetScene.instance==null)return false;
+            var ids=familiars?.GetValue(null) as List<ZDOID>;
+            var records=details?.GetValue(null) as IDictionary;
+            if(ids==null || !ids.Contains(id) || records==null)return false;
+            ZDO pet=ZDOMan.instance.GetZDO(id);
+            if(pet==null || pet.GetLong(OwnerKey,0L)!=Player.m_localPlayer.GetPlayerID())
+                return false;
+            GameObject prefab=ZNetScene.instance.GetPrefab(pet.GetPrefab());
+            if(!prefab || prefab.name!="Degu")return false;
+            object info=records.Contains(id)?records[id]:null;
+            if(info==null)
+            {
+                info=Activator.CreateInstance(infoType,true);
+                Set(info,"Id",id);
+                records[id]=info;
+            }
+            if(IsDegu(info))return false; // already identified; preserve details
+            string current=Get(info,"Prefab") as string;
+            if(!string.IsNullOrEmpty(current))return false; // never overwrite another species
+            Set(info,"Prefab","Degu");
+            Set(info,"Skin",Mathf.Clamp(pet.GetInt(SkinKey,0),0,6));
+            Set(info,"EyeColor",Mathf.Clamp(pet.GetInt(EyeKey,0),0,6));
+            Set(info,"ShowRunes",pet.GetBool(RunesKey,true));
+            Set(info,"NameColor",Mathf.Clamp(pet.GetInt(NameColorKey,1),0,15));
+            Set(info,"PetLevel",Mathf.Clamp(pet.GetInt(PetLevelKey,1),1,100));
+            Dirty();
+            DeguPlugin.Log?.LogInfo("DEGU_TRESURA: recovered existing owned Degu identity, id="+id+
+                ", skin="+GetInt(info,"Skin")+" (no new pet or roster entry created).");
+            return true;
+        }
+        // Recover only LIVE, nearby, already-owned Degu which still has the
+        // original persistent owner ID but whose local player registry lost
+        // the corresponding ZDOID. Never claim wild/foreign pets and never
+        // exceed native Tresura's trained slot count.
+        private static void RecoverExistingVisibleOwnedPets()
+        {
+            Player player=Player.m_localPlayer;
+            if(!player || !ZNetScene.instance || ZRoutedRpc.instance==null ||
+                Time.unscaledTime<nextRosterRecovery)return;
+            nextRosterRecovery=Time.unscaledTime+8f;
+            var ids=familiars?.GetValue(null) as List<ZDOID>;
+            if(ids==null)return;
+            int maximum;
+            try { maximum=(int)slotCountNative.Invoke(null,new object[]{player}); }
+            catch(Exception){return;}
+            if(maximum<1 || maximum>4 || ids.Count>=maximum)return;
+            int recovered=0;
+            foreach(Character animal in Character.GetAllCharacters())
+            {
+                if(!animal || !animal.IsTamed() ||
+                   !string.Equals(animal.gameObject.name,"Degu(Clone)",StringComparison.Ordinal))
+                    continue;
+                ZNetView view=animal.GetComponent<ZNetView>();
+                if(!view || !view.IsValid())continue;
+                ZDO zdo=view.GetZDO();
+                if(zdo==null || zdo.m_uid==ZDOID.None ||
+                   zdo.GetLong(OwnerKey,0L)!=player.GetPlayerID() ||
+                   ids.Contains(zdo.m_uid))continue;
+                GameObject template=ZNetScene.instance.GetPrefab(zdo.GetPrefab());
+                if(!template || template.name!="Degu")continue;
+                if(ids.Count>=maximum)break;
+                ids.Add(zdo.m_uid);
+                captureNative.Invoke(null,new object[]{animal});
+                recovered++;
+                DeguPlugin.Log?.LogInfo("DEGU_TRESURA: restored lost roster link to live, owned Degu "+
+                    zdo.m_uid+"; owner verified. No new ZDO created.");
+            }
+            if(recovered>0)
+            {
+                saveNative.Invoke(null,new object[]{player});
+                DeguPlugin.Log?.LogInfo("DEGU_TRESURA: persisted "+recovered+
+                    " recovered Degu registry links to player's native Tresura data.");
+            }
+        }
+
+        private static bool FromServer(long sender)
+        {
+            if(ZRoutedRpc.instance==null)return false;
+            MethodInfo getter=AccessTools.Method(typeof(ZRoutedRpc),"GetServerPeerID");
+            if(getter==null)
+            {
+                // Old dedicated-server API lacks the member at compile time.
+                // Do not accept unverified RPC identities.
+                ReportUnavailable("GetServerPeerID unavailable; skipping unverified roster hydrate.");
+                return false;
+            }
+            try { return getter.Invoke(ZRoutedRpc.instance,null) is long id && sender==id; }
+            catch(Exception){return false;}
+        }
+        private static void BeforeStatus(long sender)
+        {
+            if(!FromServer(sender))return;
+            var ids=familiars?.GetValue(null) as List<ZDOID>;
+            if(ids==null)return;
+            // Iterate snapshot; no mutation of the native roster itself.
+            foreach(ZDOID id in ids.ToArray())
+                HydrateExistingOwnedDegu(id);
+        }
+        private static void AfterAdopt(long sender,ZPackage pkg)
+        {
+            if(pkg==null || !FromServer(sender))return;
+            try
+            {
+                ZDOID id=new ZPackage(pkg.GetArray()).ReadZDOID();
+                HydrateExistingOwnedDegu(id);
+            }
+            catch(Exception ex)
+            {
+                DeguPlugin.Log?.LogWarning("DEGU_TRESURA: adoption status hydration failed: "+
+                    ex.GetBaseException().Message);
+            }
+        }
+
         // The Degu project intentionally does not reference UnityEngine.UI.dll.
         // Set this existing Overhaul UI property by reflection instead.
         private static void Interactable(FieldInfo f,bool enabled)
@@ -258,6 +438,12 @@ namespace SirrohDegu
         }
         private static void AfterDetail()
         {
+            try { RecoverExistingVisibleOwnedPets(); }
+            catch(Exception ex)
+            {
+                DeguPlugin.Log?.LogWarning("DEGU_TRESURA: roster recovery skipped: "+
+                    ex.GetBaseException().Message);
+            }
             object info=Selection();
             if(!IsSelectedDegu(info))return;
             bool alive=Alive(info);
@@ -293,6 +479,21 @@ namespace SirrohDegu
             if(runeColor!=null && runeColor.CanWrite)
             {
                 bool active=Get(info,"ShowRunes") is bool b && b;
+                // Native menu considers only Wolf when selecting the toggle
+                // icon. Override its visual state for Degu, not other species.
+                try
+                {
+                    Type icons=AccessTools.TypeByName("Sirro.PracaFizyczna.SearchUiIcons");
+                    MethodInfo toggle=icons==null?null:AccessTools.Method(icons,"ToggleMask");
+                    object sprite=toggle?.Invoke(null,new object[]{active});
+                    PropertyInfo image=runeImage?.GetType().GetProperty("sprite");
+                    if(sprite!=null && image!=null && image.CanWrite)
+                        image.SetValue(runeImage,sprite,null);
+                }
+                catch(Exception ex)
+                {
+                    DeguPlugin.Log?.LogWarning("DEGU_TRESURA: rune icon unavailable: "+ex.GetBaseException().Message);
+                }
                 Color display=alive && GetInt(info,"PetLevel",1)>=25?
                     active?new Color(.24f,.86f,.32f,1f):new Color(.93f,.24f,.22f,1f):
                     new Color(.6f,.6f,.6f,.45f);
@@ -304,7 +505,7 @@ namespace SirrohDegu
             if(message!=lastState)
             {
                 lastState=message;
-                DeguPlugin.Log?.LogInfo("Degu Tresura UI 0.2.5: "+message);
+                DeguPlugin.Log?.LogInfo("DEGU_TRESURA: selected Degu UI "+message);
             }
         }
     }
