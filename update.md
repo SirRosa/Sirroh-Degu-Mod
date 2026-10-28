@@ -115,4 +115,4 @@ Każdy kolejny commit zmiany: dopisać do update.md datę/wersję, zmodyfikowane
 
 **Uzasadnienie:** źródła dźwięku `ZSFX` odtwarzają zmienne `m_minPitch/m_maxPitch`; modyfikowanie ich na oryginalnym prefabie wilka zmieniłoby również wilki. Skopiowanie prefabu i przepisanie własnej `EffectList` Degu izoluje skutki. Logi animacji i niewielkie różnice skal są wyłącznie diagnostyczne. 
 
-**Weryfikacja:** CI/build = W TOKU; runtime Valheim (w tym czy Degu odtwarza wyższe dźwięki) = NIEPRZETESTOWANE. Po CI zanotować identyfikator runu, nazwę paczki i jej sumę SHA-256. Nie uznawać testu statycznego za odsłuch gry.
+**Weryfikacja:** GitHub Actions #40676955037 na commicie `a82c1bd6bfa8b6ed292e92fbd6adf3e283c96c47` = **SUCCESS** (testy regresji, kompilacja .NET net48, Blender QA, skinning QA, pakiet Thunderstore). Paczka testowa `SirRosa-SirrohDegu-0.4.1.zip` = 86 501 bajtów, SHA-256 `29a59e5d9977e4b968700c582115e7042ac2ead98c2f72a7cde52e9fa395e228`, zawiera DLL 110 592 bajtów, manifest 0.4.1, README, ikonę. ZIP integralność PASS, nowy `DeguAudioPitch` obecny w DLL. Runtime Valheim (w tym odsłuch) = **NIEPRZETESTOWANE**. Test statyczny nie zastępuje odsłuchu gry.
