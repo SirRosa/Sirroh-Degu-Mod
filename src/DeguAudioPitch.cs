@@ -21,6 +21,7 @@ namespace SirrohDegu
         private static readonly Dictionary<GameObject,GameObject> SfxCopies=
             new Dictionary<GameObject,GameObject>();
         private static readonly List<GameObject> Owned=new List<GameObject>();
+        private static readonly HashSet<int> ConfiguredActors=new HashSet<int>();
         internal static float Multiplier=1.45f;
 
         private static FieldInfo FindField(Type type,string name)
@@ -132,6 +133,15 @@ namespace SirrohDegu
             if(!scene || !degu || !inactiveHolder)return;
             if(inactiveHolder.gameObject.activeInHierarchy)
                 throw new InvalidOperationException("Degu sound clone holder must be inactive.");
+            if(!ConfiguredActors.Add(degu.GetInstanceID()))
+            {
+                // ZNetScene can be recreated when loading another world.
+                // The creature's own EffectList is already rewritten; simply
+                // restore audio-prefab lookup in the new network scene.
+                foreach(GameObject prefab in Owned)
+                    if(prefab)RegisterClone(scene,prefab);
+                return;
+            }
             int links=0;
             foreach(Component component in degu.GetComponentsInChildren<Component>(true))
             {
@@ -168,6 +178,7 @@ namespace SirrohDegu
             foreach(GameObject sfx in Owned)if(sfx)UnityEngine.Object.Destroy(sfx);
             Owned.Clear();
             SfxCopies.Clear();
+            ConfiguredActors.Clear();
         }
     }
 }
