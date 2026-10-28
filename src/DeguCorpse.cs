@@ -140,7 +140,16 @@ namespace SirrohDegu
                     // the much smaller visible Degu. Add a compact ground
                     // contact to an EXISTING native ragdoll Rigidbody.
                     // The native joints, collisions, decay and loot remain.
-                    DeguCorpseGroundSupport.Configure(candidate);
+                    try { DeguCorpseGroundSupport.Configure(candidate); }
+                    catch(Exception ex)
+                    {
+                        // A physics configuration difference between Valheim
+                        // builds must NEVER revert Degu's corpse to Wolf or
+                        // prevent native ragdoll/loot creation.
+                        DeguPlugin.Log?.LogWarning("DEGU_CORPSE: torso contact unavailable; "+
+                            "keeping native DeguRagdoll instead of losing corpse: "+
+                            ex.GetBaseException().Message);
+                    }
 
                     if(!candidate.GetComponent<DeguCorpseVisual>())
                         candidate.AddComponent<DeguCorpseVisual>();
