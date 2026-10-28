@@ -136,6 +136,12 @@ namespace SirrohDegu
                     foreach(LODGroup lod in candidate.GetComponentsInChildren<LODGroup>(true))
                         if(lod)lod.enabled=false;
 
+                    // The inherited wolf-sized physics hull does not match
+                    // the much smaller visible Degu. Add a compact ground
+                    // contact to an EXISTING native ragdoll Rigidbody.
+                    // The native joints, collisions, decay and loot remain.
+                    DeguCorpseGroundSupport.Configure(candidate);
+
                     if(!candidate.GetComponent<DeguCorpseVisual>())
                         candidate.AddComponent<DeguCorpseVisual>();
                     prefab=candidate;
