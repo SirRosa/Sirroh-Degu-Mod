@@ -25,6 +25,7 @@
     <Reference Include="assembly_utils"><HintPath>$(ReferenceDir)/assembly_utils.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(ReferenceDir)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.AnimationModule"><HintPath>$(ReferenceDir)/UnityEngine.AnimationModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(ReferenceDir)/UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.AssetBundleModule"><HintPath>$(ReferenceDir)/UnityEngine.AssetBundleModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine"><HintPath>$(ReferenceDir)/UnityEngine.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="BepInEx"><HintPath>$(ReferenceDir)/BepInEx.dll</HintPath><Private>false</Private></Reference>
