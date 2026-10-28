@@ -50,6 +50,7 @@ namespace SirrohDegu
             DeguPreviewBridge.Shutdown();
             DeguWolfPalette.Shutdown();
             DeguAudioPitch.Shutdown();
+            DeguCorpse.Shutdown();
             if (_patches != null) _patches.UnpatchSelf();
             if (_prefabHolder != null) UnityEngine.Object.Destroy(_prefabHolder);
             _prefabHolder = null;
@@ -163,6 +164,7 @@ namespace SirrohDegu
                     // Wolf palette resolves independently as game assets load.
                     DeguWolfPalette.Register(existing);
                     DeguAudioPitch.Configure(scene,existing,GetHolder().transform);
+                    DeguCorpse.Register(scene,existing,GetHolder().transform);
                     Log?.LogInfo("Degu already exists in ZNetScene.GetPrefab; no duplicate.");
                     return;
                 }
@@ -264,6 +266,7 @@ namespace SirrohDegu
             // Wolf palette resolves independently as game assets load.
             DeguWolfPalette.Register(_deguPrefab);
             DeguAudioPitch.Configure(scene,_deguPrefab,GetHolder().transform);
+            DeguCorpse.Register(scene,_deguPrefab,GetHolder().transform);
             // Final Degu renderer is staged disabled until clone Start.
             Log?.LogInfo("Degu REGISTERED + VERIFIED: ZNetScene.GetPrefab('Degu') resolved; " +
                          "prefab activeSelf=" + _deguPrefab.activeSelf +
