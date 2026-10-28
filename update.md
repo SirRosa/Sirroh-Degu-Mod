@@ -145,3 +145,8 @@ Każdy kolejny commit zmiany: dopisać do update.md datę/wersję, zmodyfikowane
 - **Bezpieczeństwo przy niezgodnym prefabie:** gdy na danej wersji Valheim nie da się dobrać natywnego Rigidbody do podparcia, DeguRagdoll wciąż pozostaje zarejestrowany i odtwarza standardowe zwłoki/łupy; kod loguje jeden komunikat o braku nowego podparcia, nie wraca do martwego wilka. Test gry pozostaje wymagany.
 
 - **Kolejność fizyki:** `DeguCorpseGroundSupport` ma `DefaultExecutionOrder(10000)`, dzięki czemu jego `Start` nakłada CCD i ignorowanie kolizji między własnymi colliderami po `Ragdoll.Start`, gdy pierwotne Rigidbody są już skonfigurowane.
+
+### 0.4.3 — zakończona kompilacja (nie jest testem fizyki w Valheim)
+- **GitHub Actions:** [run 40681499861](https://github.com/SirRosa/Sirroh-Degu-Mod/actions/runs/40681499861), commit `41461e71237ae2b202094b1a317094f53b2cd363`, **SUCCESS**. Testy kodu, kompilacja .NET net48, Blender QA i Skinning QA PASS; żaden nie symuluje fizyki Unity.
+- **Thunderstore RC:** `SirRosa-SirrohDegu-0.4.3.zip`, dokładnie 90 146 bajtów, SHA-256 `6d2fe0a019c28bb7f9a751d8c3061478c7f3d1f4ca9f2aad37ed48c8d69657eb`; `SirrohDegu.dll` 119 296 bajtów. Zweryfikowano obecność `DeguCorpseGroundSupport` w DLL, manifest 0.4.3 i integralność ZIP PASS.
+- **KRYTERIUM ODBIORU:** fizyczne pozostawanie zwłok nad ziemią podczas śmierci na równinach, zboczu i podłodze oraz prawidłowe spadanie/przewracanie = **NIEPRZETESTOWANE W GRZE**. Nie wolno uznawać problemu za naprawiony tylko na podstawie SUCCESS z Actions.
