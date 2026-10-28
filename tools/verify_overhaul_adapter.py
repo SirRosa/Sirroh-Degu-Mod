@@ -110,9 +110,9 @@ for token in ('PlainsMonsters','SetIfPresent(ai, "m_huntPlayer", false)',
               'Put(spawn,"m_spawnInterval",250f)',
               'Put(spawn,"m_spawnChance",35f)'):
     assert token in world,token
-assert json.loads(Path("manifest.json").read_text())["version_number"]=="0.4.1"
-assert '"0.4.1"' in plugin
-assert "0.4.1" in Path("update.md").read_text()
+assert json.loads(Path("manifest.json").read_text())["version_number"]=="0.4.2"
+assert '"0.4.2"' in plugin
+assert "0.4.2" in Path("update.md").read_text()
 icon=Path("Assets/Icons/Degu.png").read_bytes()
 assert hashlib.sha256(icon).hexdigest()=="925240b90df35a969b1adebf666a7d7875aa4d502f2ce027cd27095d65613a03"
 print("PASS neutral AI, Plains 3–7 spawn, icon integrity, version ledger")
@@ -142,3 +142,35 @@ assert 'Degu sprint diagnostic' not in rig or 'pelvis offset' in rig
 assert 'Log?.LogDebug("DEGU_TRESURA: server saved op="' in ui
 assert 'Log?.LogInfo("DEGU_TRESURA: server saved op="' not in ui
 print("PASS Degu-only sound clones and configurable pitch; no vanilla Wolf SFX or shared EffectList mutation")
+
+corpse=Path("src/DeguCorpse.cs").read_text()
+for token in (
+    'internal const string PrefabName="DeguRagdoll";',
+    'scene.GetPrefab("Wolf_Ragdoll")',
+    'candidate.GetComponent<Ragdoll>()',
+    'candidate.GetComponent<ZNetView>()',
+    'skin.bones.Length==34',
+    'skin.sharedMesh.bindposes.Length==34',
+    'DeguMesh.ReplaceMesh(source,candidate);',
+    'skin!=visual)skin.enabled=false',
+    'DeguPlugin.RegisterSupplementalPrefab(scene,prefab)',
+    'actor.m_deathEffects=isolatedList;',
+    'var entries=(EffectList.EffectData[])oldEntries.Clone();',
+    'isolated.m_prefab=replacement;',
+    'view.IsOwner()',
+    'DeguWolfPalette.SkinKey',
+    'DeguWolfPalette.EyeKey',
+    'DeguWolfPalette.Apply(gameObject,coat,eye,element)',
+    'if(applied)yield break;',
+    'visual.bones.Length==visual.sharedMesh.bindposes.Length',
+):
+    assert token in corpse,token
+assert 'actor.m_deathEffects.m_effectPrefabs[' not in corpse
+assert 'Destroy(original)' not in corpse
+assert 'Destroy(source)' not in corpse
+assert 'AddComponent<Character>' not in corpse
+assert 'AddComponent<MonsterAI>' not in corpse
+assert 'DeguCorpse.Register(scene,existing,GetHolder().transform);' in plugin
+assert 'DeguCorpse.Register(scene,_deguPrefab,GetHolder().transform);' in plugin
+assert 'DeguCorpse.Shutdown();' in plugin
+print("PASS custom DeguRagdoll network registration, native physics, isolated death effects, color ZDO and unchanged Wolf prefabs")
