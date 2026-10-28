@@ -11,11 +11,22 @@
     <ReferenceDir Condition="'$(ReferenceDir)' == ''">.ci-deps</ReferenceDir>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Historical experiments remain readable on GitHub but cannot patch the
+         runtime in 0.4.0. Only freshly authored independent modules are built. -->
+    <Compile Remove="src/DeguAppearanceService.cs" />
+    <Compile Remove="src/DeguFamiliarRepair.cs" />
+    <Compile Remove="src/DeguPreviewDiagnostics.cs" />
+    <Compile Remove="src/DeguBindposeTrace.cs" />
+    <Compile Remove="src/OverhaulCompatibility.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
     <Reference Include="assembly_valheim"><HintPath>$(ReferenceDir)/assembly_valheim.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="assembly_utils"><HintPath>$(ReferenceDir)/assembly_utils.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(ReferenceDir)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.AnimationModule"><HintPath>$(ReferenceDir)/UnityEngine.AnimationModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(ReferenceDir)/UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AssetBundleModule"><HintPath>$(ReferenceDir)/UnityEngine.AssetBundleModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine"><HintPath>$(ReferenceDir)/UnityEngine.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="BepInEx"><HintPath>$(ReferenceDir)/BepInEx.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="0Harmony"><HintPath>$(ReferenceDir)/0Harmony.dll</HintPath><Private>false</Private></Reference>

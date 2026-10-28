@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
+using BepInEx.Bootstrap;
 using UnityEngine;
 
 namespace SirrohDegu
@@ -10,6 +11,70 @@ namespace SirrohDegu
     internal static class DeguPreviewDiagnostics
     {
         private static string lastState;
+
+        private static Harmony patches;
+        private static string lastFailure;
+        internal static void Install()
+        {
+            if(patches!=null)return;
+            try
+            {
+                Assembly assembly=null;
+                if(Chainloader.PluginInfos.TryGetValue("sirro.valheim.pracafizyczna",out var p))
+                {
+                    System.Version v=p.Metadata.Version;
+                    if(v.Major!=0 || v.Minor!=22 || v.Build!=65)
+                    {
+                        ReportFailure("Overhaul version "+v+" differs from 0.22.65");
+                        return;
+                    }
+                    assembly=p.Instance.GetType().Assembly;
+                }
+                if(assembly==null)
+                    assembly=AccessTools.TypeByName("Sirro.PracaFizyczna.FamiliarModelPreview")?.Assembly;
+                if(assembly==null)
+                {
+                    ReportFailure("Overhaul FamiliarModelPreview not loaded yet");
+                    return;
+                }
+                var type=assembly.GetType("Sirro.PracaFizyczna.FamiliarModelPreview",true);
+                var panel=assembly.GetType("Sirro.PracaFizyczna.FamiliarMenuPanel",true);
+                var copy=AccessTools.Method(type,"CopyRenderers");
+                var show=AccessTools.Method(type,"Show");
+                var detail=AccessTools.Method(panel,"UpdateDetail");
+                if(copy==null || show==null || detail==null)
+                    throw new MissingMethodException("Overhaul preview/UpdateDetail");
+                patches=new Harmony("sirroh.degu.preview.v031");
+                patches.Patch(copy,prefix:new HarmonyMethod(AccessTools.Method(
+                    typeof(DeguPreviewDiagnostics),nameof(CopyRenderers))));
+                patches.Patch(show,postfix:new HarmonyMethod(AccessTools.Method(
+                    typeof(DeguPreviewDiagnostics),nameof(AfterPreviewShow))));
+                patches.Patch(detail,prefix:new HarmonyMethod(AccessTools.Method(
+                    typeof(DeguPreviewDiagnostics),nameof(BeforeDetail))),
+                    postfix:new HarmonyMethod(AccessTools.Method(
+                    typeof(DeguPreviewDiagnostics),nameof(AfterDetail))));
+                DeguPlugin.Log?.LogInfo("DEGU_PREVIEW: Degu-only renderer hooks active.");
+            }
+            catch(Exception e)
+            {
+                patches?.UnpatchSelf();
+                patches=null;
+                ReportFailure("patch: "+e.GetBaseException());
+            }
+        }
+        private static void ReportFailure(string reason)
+        {
+            if(lastFailure==reason)return;
+            lastFailure=reason;
+            DeguPlugin.Log?.LogWarning("DEGU_PREVIEW unavailable: "+reason);
+        }
+        internal static void Shutdown()
+        {
+            patches?.UnpatchSelf();
+            patches=null;
+            lastState=null;
+        }
+
         private static readonly BindingFlags StaticPrivate = BindingFlags.Static | BindingFlags.NonPublic;
         private static readonly BindingFlags InstancePrivate = BindingFlags.Instance | BindingFlags.NonPublic;
         private static object Selected()
@@ -34,7 +99,6 @@ namespace SirrohDegu
         }
         private static void BeforeDetail()
         {
-            if(!OverhaulCompatibility.Enabled)return;
             object info=Selected();
             if(!IsDegu(info) || !(Field(info,"Alive") is bool alive) || alive)return;
             Player player=Player.m_localPlayer;
@@ -54,7 +118,6 @@ namespace SirrohDegu
         }
         private static void AfterDetail()
         {
-            if(!OverhaulCompatibility.Enabled)return;
             object info=Selected();
             if(!IsDegu(info))return;
             string value="alive="+Field(info,"Alive")+
@@ -94,21 +157,35 @@ namespace SirrohDegu
                         renderer.receiveShadows=false;
                     }
                     var skin=from.GetComponent<SkinnedMeshRenderer>();
-                    if(!skin || !skin.enabled || !skin.sharedMesh)continue;
-                    var result=into.gameObject.AddComponent<SkinnedMeshRenderer>();
+                    // Staged network prefab keeps its Degu visual disabled
+                    // until clone initialization. Detached UI preview is safe
+                    // to construct from that renderer without a Character.
+                    if(!skin || !skin.sharedMesh ||
+                       (!skin.enabled && skin.name!="SirrohDegu_StableVisual"))continue;
                     Transform[] original=skin.bones;
-                    var bones=new Transform[original.Length];
-                    for(int i=0;i<bones.Length;i++)
-                        bones[i]=original[i] && map.TryGetValue(original[i],out Transform found)?found:into;
-                    if(skin.sharedMesh.bindposes.Length!=bones.Length)
+                    if(original==null || original.Length==0 ||
+                       skin.sharedMesh.bindposes.Length!=original.Length)
                     {
-                        DeguPlugin.Log?.LogWarning("Degu preview skipped inconsistent mesh: bindposes="+
-                            skin.sharedMesh.bindposes.Length+", bones="+bones.Length);
-                        UnityEngine.Object.Destroy(result);
+                        DeguPlugin.Log?.LogWarning("DEGU_PREVIEW: invalid source binding "+skin.name);
                         continue;
                     }
+                    var bones=new Transform[original.Length];
+                    bool mapped=true;
+                    for(int i=0;i<original.Length;i++)
+                    {
+                        if(!original[i] || !map.TryGetValue(original[i],out Transform found) || !found)
+                        {mapped=false;break;}
+                        bones[i]=found;
+                    }
+                    if(!mapped || !skin.rootBone || !map.TryGetValue(skin.rootBone,out Transform boundRoot) || !boundRoot)
+                    {
+                        DeguPlugin.Log?.LogWarning("DEGU_PREVIEW: unmapped Degu bone/root; skipping renderer "+skin.name);
+                        continue;
+                    }
+                    var result=into.gameObject.AddComponent<SkinnedMeshRenderer>();
+                    result.enabled=false;
                     result.bones=bones;
-                    result.rootBone=skin.rootBone && map.TryGetValue(skin.rootBone,out Transform root)?root:into;
+                    result.rootBone=boundRoot;
                     result.sharedMesh=skin.sharedMesh;
                     var live=Matching(from,source.transform,living?living.transform:null);
                     result.sharedMaterials=live && live.sharedMaterials.Length==skin.sharedMaterials.Length
@@ -116,6 +193,7 @@ namespace SirrohDegu
                     result.localBounds=skin.localBounds;
                     result.updateWhenOffscreen=true;
                     result.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+                    result.enabled=true;
                 }
             }
             catch(Exception e)
@@ -123,6 +201,44 @@ namespace SirrohDegu
                 DeguPlugin.Log?.LogError("Degu-only preview failed: "+e.GetBaseException().Message);
             }
             return false;
+        }
+
+        // Reapply native materials to the detached renderer-only scene after
+        // Overhaul's Show creates it; never instantiate an active Character.
+        private static void AfterPreviewShow(object __instance,string prefab,int skin,
+            ZDOID petId,int eyeColor,bool showRunes)
+        {
+            if(prefab!="Degu" || __instance==null)return;
+            try
+            {
+                GameObject visual=__instance.GetType().GetField("_visual",InstancePrivate)
+                    ?.GetValue(__instance) as GameObject;
+                if(!visual)return;
+                ZDO zdo=ZDOMan.instance?.GetZDO(petId);
+                int level=zdo==null?1:zdo.GetInt(DeguAppearanceService.LevelKey,1);
+                int element=zdo==null?0:zdo.GetInt(DeguAppearanceService.ElementKey,0);
+                if(zdo==null)
+                {
+                    object selected=Selected();
+                    object id=Field(selected,"Id");
+                    if(id is ZDOID matching && matching==petId)
+                    {
+                        if(Field(selected,"PetLevel") is int l)level=l;
+                        if(Field(selected,"Element") is int e)element=e;
+                    }
+                }
+                if(eyeColor<1 || eyeColor>6)
+                    eyeColor=zdo==null?0:zdo.GetInt(DeguAppearanceService.EyeKey,0);
+                int appliedElement=showRunes && level>=25?Mathf.Clamp(element,0,5):0;
+                bool done=DeguAppearanceService.ApplyVisual(visual,skin,eyeColor,appliedElement);
+                if(!done)
+                    DeguPlugin.Log?.LogWarning("DEGU_PREVIEW: no material for requested Degu preview");
+                __instance.GetType().GetMethod("Render",InstancePrivate)?.Invoke(__instance,null);
+            }
+            catch(Exception ex)
+            {
+                DeguPlugin.Log?.LogError("DEGU_PREVIEW: apply failed: "+ex.GetBaseException());
+            }
         }
         private static SkinnedMeshRenderer Matching(Transform from,Transform root,Transform living)
         {
