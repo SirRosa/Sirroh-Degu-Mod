@@ -90,6 +90,8 @@ namespace SirrohDegu
             // ContinuousDynamic prevents a fast initial death impulse from
             // tunneling the small contact collider through the ground. Do not
             // overwrite native mass, velocity, constraints or joint settings.
+            // This is also applied after native Ragdoll.Start, since a
+            // prefab can serialize its rigidbodies as initially kinematic.
             if(!torso.isKinematic &&
                torso.collisionDetectionMode==CollisionDetectionMode.Discrete)
                 torso.collisionDetectionMode=CollisionDetectionMode.ContinuousDynamic;
@@ -107,6 +109,10 @@ namespace SirrohDegu
                     {contact=collider;break;}
             }
             if(!contact)return;
+            Rigidbody torso=contact.GetComponentInParent<Rigidbody>();
+            if(torso && !torso.isKinematic &&
+               torso.collisionDetectionMode==CollisionDetectionMode.Discrete)
+                torso.collisionDetectionMode=CollisionDetectionMode.ContinuousDynamic;
             // A compound collider should touch the WORLD, not collide with
             // other bodies of this same ragdoll. Apply on the active clone:
             // Physics.IgnoreCollision on inactive prefab templates is unsafe.
