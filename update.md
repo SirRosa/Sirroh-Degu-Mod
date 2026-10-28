@@ -143,3 +143,5 @@ Każdy kolejny commit zmiany: dopisać do update.md datę/wersję, zmodyfikowane
 - **Cel testu:** zabicie kilku dzikich i oswojonych Degu na trawie, zboczu i wybudowanej podłodze; ragdoll pozostaje na powierzchni i poprawnie się przewraca, nie przesuwa nagle, zachowuje materiały, łupy i 2 s naturalnego rozpadu. Sprawdzić zwykłego wilka. Wynik CI i Valheim: NIEPOTWIERDZONY przed wykonaniem.
 
 - **Bezpieczeństwo przy niezgodnym prefabie:** gdy na danej wersji Valheim nie da się dobrać natywnego Rigidbody do podparcia, DeguRagdoll wciąż pozostaje zarejestrowany i odtwarza standardowe zwłoki/łupy; kod loguje jeden komunikat o braku nowego podparcia, nie wraca do martwego wilka. Test gry pozostaje wymagany.
+
+- **Kolejność fizyki:** `DeguCorpseGroundSupport` ma `DefaultExecutionOrder(10000)`, dzięki czemu jego `Start` nakłada CCD i ignorowanie kolizji między własnymi colliderami po `Ragdoll.Start`, gdy pierwotne Rigidbody są już skonfigurowane.
