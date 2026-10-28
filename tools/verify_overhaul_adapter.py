@@ -181,6 +181,7 @@ support=Path("src/DeguCorpseGroundSupport.cs").read_text()
 for fragment in (
     'internal const string ContactName="SirrohDegu_CorpseGroundContact";',
     'private const float WorldRadius=.19f;',
+    '[DefaultExecutionOrder(10000)]',
     'corpse.GetComponentsInChildren<Rigidbody>(true)',
     'if(!corpse.GetComponent<Ragdoll>())',
     'Transform pelvis=null,head=null;',
