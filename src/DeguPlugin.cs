@@ -2,12 +2,13 @@ using System;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Logging;
+using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
 
 namespace SirrohDegu
 {
-    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.2.5")]
+    [BepInPlugin("sirroh.valheim.degu", "Sirroh Degu", "0.4.2")]
     [BepInDependency("sirro.valheim.pracafizyczna", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class DeguPlugin : BaseUnityPlugin
     {
@@ -25,21 +26,31 @@ namespace SirrohDegu
             Instance = this;
             Log = Logger;
 
+            DeguAudioPitch.Multiplier=Config.Bind("Audio","VoicePitchMultiplier",1.45f,
+                new ConfigDescription("Pitch multiplier for Degu's cloned Wolf sounds only. "+
+                    "1.0 = original Wolf voice; 1.45 = higher, squeaky voice; restart required.",
+                    new AcceptableValueRange<float>(1.0f,2.0f))).Value;
             _patches = new Harmony("sirroh.valheim.degu");
             _patches.PatchAll(typeof(DeguPlugin).Assembly);
             DeguWorld.InstallLocalizationHook(_patches);
             DeguWorld.Localize();
-            OverhaulCompatibility.Install();
+            // Rebuilt palette initializes lazily from native Wolf materials.
+            // No global ZNetView patches or per-spawn bindpose diagnostic spam.
             DeguCompassIcon.Register(_patches);
-            DeguFamiliarRepair.Install();
-            Logger.LogInfo("Sirroh Degu v0.2.5 loaded. Waiting for ZNetScene prefab registry.");
+            DeguFamiliarBridge.Install();
+            DeguPreviewBridge.Install();
+            Logger.LogInfo("Sirroh Degu v0.4.2 loaded. Waiting for ZNetScene prefab registry.");
         }
 
         private void OnDestroy()
         {
-            OverhaulCompatibility.Shutdown();
+            // Appearance service owns no Harmony patches.
             DeguCompassIcon.Shutdown();
-            DeguFamiliarRepair.Shutdown();
+            DeguFamiliarBridge.Shutdown();
+            DeguPreviewBridge.Shutdown();
+            DeguWolfPalette.Shutdown();
+            DeguAudioPitch.Shutdown();
+            DeguCorpse.Shutdown();
             if (_patches != null) _patches.UnpatchSelf();
             if (_prefabHolder != null) UnityEngine.Object.Destroy(_prefabHolder);
             _prefabHolder = null;
@@ -56,21 +67,16 @@ namespace SirrohDegu
             [HarmonyPostfix]
             private static void Postfix(ZNetScene __instance)
             {
-                try { Register(__instance); }
+                try
+                {
+                    // Retry optional integrations only after Overhaul and the
+                    // game's prefab registries have completed initialization.
+                    // Wolf palette resolves independently as game assets load.
+                    DeguFamiliarBridge.Install();
+                    DeguPreviewBridge.Install();
+                    Register(__instance);
+                }
                 catch (Exception ex) { Log?.LogError("Degu prefab registration FAILED: " + ex); }
-            }
-        }
-
-        [HarmonyPatch(typeof(ZNetView), "Awake")]
-        private static class DeguSpawnDiagnostic
-        {
-            // Diagnostic only: executed for all views, logging only Degu spawns.
-            [HarmonyPostfix]
-            private static void Postfix(ZNetView __instance)
-            {
-                if (__instance != null && __instance.gameObject != null &&
-                    __instance.gameObject.name == "Degu(Clone)")
-                    Log?.LogInfo("Degu(Clone): ZNetView.Awake executed (runtime spawn initialized).");
             }
         }
 
@@ -123,6 +129,22 @@ namespace SirrohDegu
             if (method == null) throw new MissingMethodException(lookup.GetType().FullName, "Remove");
             method.Invoke(lookup, new object[] { hash });
         }
+        // Used only for Degu-owned cloned Wolf sound prefabs. This cannot
+        // overwrite original sfx_wolf* names or their material/audio settings.
+        internal static void RegisterSupplementalPrefab(ZNetScene scene,GameObject prefab)
+        {
+            if(!scene || !prefab || scene.m_prefabs==null)return;
+            int hash=StringExtensionMethods.GetStableHashCode(prefab.name);
+            object lookup=GetNamedPrefabs(scene);
+            if(TryGetNamedPrefab(lookup,hash,out GameObject existing))
+            {
+                if(existing!=prefab)
+                    throw new InvalidOperationException("Degu sound prefab hash collision: "+prefab.name);
+                return;
+            }
+            if(!scene.m_prefabs.Contains(prefab))scene.m_prefabs.Add(prefab);
+            AddNamedPrefab(lookup,hash,prefab);
+        }
 
         private static void Register(ZNetScene scene)
         {
@@ -139,7 +161,10 @@ namespace SirrohDegu
             {
                 if (existing != null && existing.name == "Degu")
                 {
-                    OverhaulCompatibility.AfterDeguRegistered(existing);
+                    // Wolf palette resolves independently as game assets load.
+                    DeguWolfPalette.Register(existing);
+                    DeguAudioPitch.Configure(scene,existing,GetHolder().transform);
+                    DeguCorpse.Register(scene,existing,GetHolder().transform);
                     Log?.LogInfo("Degu already exists in ZNetScene.GetPrefab; no duplicate.");
                     return;
                 }
@@ -238,7 +263,11 @@ namespace SirrohDegu
                 throw new InvalidOperationException("ZNetScene.GetPrefab('Degu') failed after registration.");
             }
 
-            OverhaulCompatibility.AfterDeguRegistered(_deguPrefab);
+            // Wolf palette resolves independently as game assets load.
+            DeguWolfPalette.Register(_deguPrefab);
+            DeguAudioPitch.Configure(scene,_deguPrefab,GetHolder().transform);
+            DeguCorpse.Register(scene,_deguPrefab,GetHolder().transform);
+            // Final Degu renderer is staged disabled until clone Start.
             Log?.LogInfo("Degu REGISTERED + VERIFIED: ZNetScene.GetPrefab('Degu') resolved; " +
                          "prefab activeSelf=" + _deguPrefab.activeSelf +
                          ", activeInHierarchy=" + _deguPrefab.activeInHierarchy +
