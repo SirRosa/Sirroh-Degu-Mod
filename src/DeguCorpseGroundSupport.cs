@@ -13,6 +13,7 @@ namespace SirrohDegu
     /// much smaller Degu mesh. A small spherical compound collider on the
     /// physics torso supplies stable contact during tumbling in any rotation.
     /// </summary>
+    [DefaultExecutionOrder(10000)] // after native Ragdoll.Start configures bodies
     public sealed class DeguCorpseGroundSupport : MonoBehaviour
     {
         internal const string ContactName="SirrohDegu_CorpseGroundContact";
