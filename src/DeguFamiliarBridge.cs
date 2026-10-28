@@ -192,7 +192,9 @@ namespace SirrohDegu
                 zdo.Set(DeguWolfPalette.RunesKey,value==1);
             }
             ZDOMan.instance.ForceSendZDO(target);
-            DeguPlugin.Log?.LogInfo("DEGU_TRESURA: server saved op="+op+
+            // Per-click success belongs in DEBUG only; warnings and failed
+            // network operations remain visible at normal log levels.
+            DeguPlugin.Log?.LogDebug("DEGU_TRESURA: server saved op="+op+
                 " value="+value+" ZDO="+target);
             return false;
         }
